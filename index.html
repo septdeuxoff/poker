@@ -23,23 +23,36 @@
   const db = getFirestore(app);
   const dataRef = doc(db, "poker", "data");
 
-  // Expose save/load to global scope
-  window.fbSave = async function(players) {
-    try {
-      await setDoc(dataRef, { players: JSON.stringify(players) });
-    } catch(e) { console.error("Firebase save error", e); }
+  let isSaving = false;
+  let saveTimeout = null;
+  let localVersion = 0; // increments on every local change
+
+  // Save to Firebase — debounced to avoid rapid successive writes
+  window.fbSave = async function(playersData) {
+    localVersion++;
+    const myVersion = localVersion;
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(async () => {
+      if(myVersion !== localVersion) return; // a newer save superseded this one
+      try {
+        isSaving = true;
+        await setDoc(dataRef, { players: JSON.stringify(playersData), version: myVersion });
+      } catch(e) { console.error("Firebase save error", e); }
+      finally { setTimeout(() => isSaving = false, 500); }
+    }, 300);
   };
 
-  // Listen for real-time updates
+  // Listen for real-time updates from OTHER devices only
   onSnapshot(dataRef, (snap) => {
-    if(snap.exists()) {
+    if(snap.exists() && !isSaving) {
       try {
-        const data = JSON.parse(snap.data().players);
-        // Only update if data differs from current to avoid loops
-        if(JSON.stringify(players) !== JSON.stringify(data)) {
+        const remoteVersion = snap.data().version || 0;
+        // Only apply remote update if it's newer than our local state
+        if(remoteVersion > localVersion) {
+          const data = JSON.parse(snap.data().players);
           players = data;
           activeSet = new Set(players.map(p => p.name));
-          refresh();
+          refresh(false); // false = don't re-save to Firebase
           showToast("Données mises à jour en temps réel");
         }
       } catch(e) { console.error("Firebase parse error", e); }
@@ -52,12 +65,12 @@
       const snap = await getDoc(dataRef);
       if(snap.exists()) {
         const data = JSON.parse(snap.data().players);
+        localVersion = snap.data().version || 0;
         players = data;
         activeSet = new Set(players.map(p => p.name));
-        refresh();
+        refresh(false);
         document.getElementById('loadingOverlay').style.display = 'none';
       } else {
-        // First time: push default data to Firebase
         await window.fbSave(players);
         document.getElementById('loadingOverlay').style.display = 'none';
       }
