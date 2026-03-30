@@ -628,7 +628,7 @@ function renderStats() {
   const stats=[
     {label:'Plus gros gain',value:(totalGain(best)>=0?'+':'')+totalGain(best).toFixed(2)+'€',sub:best.name,cls:'pos'},
     {label:'Plus gros déficit',value:totalGain(worst).toFixed(2)+'€',sub:worst.name,cls:'neg'},
-    {label:'Meilleur rendement',value:Math.round(roi(bestROI)*100)+'%',sub:bestROI.name+' — mise '+bestROI.mise+'€ · gain '+(totalGain(bestROI)>=0?'+':'')+totalGain(bestROI).toFixed(2)+'€',cls:'pos'},
+    {label:'Meilleur rendement',value:Math.round(roi(bestROI)*100)+'%',sub:bestROI.name+'  ·  mise '+bestROI.mise+'€  ·  bénéfice '+(totalGain(bestROI)>=0?'+':'')+totalGain(bestROI).toFixed(2)+'€',cls:'pos'},
     {label:'Plus gros gain en une soirée',value:'+'+biggestSingleWin.val.toFixed(2)+'€',sub:biggestSingleWin.name,cls:'pos'},
     {label:'Plus grosse perte en une soirée',value:biggestSingleLoss.val.toFixed(2)+'€',sub:biggestSingleLoss.name,cls:'neg'},
     {label:'Meilleur taux de victoire',value:Math.round(winRate(highestWinRate)*100)+'%',sub:highestWinRate.name+' ('+played(highestWinRate)+' sessions)',cls:'pos'},
