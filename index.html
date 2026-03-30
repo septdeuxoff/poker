@@ -379,13 +379,10 @@
   <!-- TABLE -->
   <section class="section" id="sec-table">
     <div class="section-title">TABLEAU</div>
-    <div style="background:rgba(245,167,66,0.08);border:1px solid rgba(245,167,66,0.25);border-radius:8px;padding:0.9rem 1.1rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-      <span style="font-size:1.1rem">💾</span>
-      <span style="font-family:var(--mono);font-size:0.78rem;color:var(--muted);flex:1">Télécharge régulièrement tes données pour ne pas les perdre si le site est supprimé.</span>
-      <div class="flex-row">
-        <button class="btn ghost" onclick="exportCSV()" title="Compatible Excel">CSV</button>
-        <button class="btn" onclick="exportJSON()" title="Réimport sans perte">Sauvegarde complète</button>
-      </div>
+    <div style="margin-bottom:1rem;display:flex;gap:8px;align-items:center">
+      <span style="font-size:1.3rem">💾</span>
+      <button class="btn ghost" onclick="exportCSV()" title="Compatible Excel">CSV</button>
+      <button class="btn" onclick="exportJSON()" title="Réimport sans perte">Sauvegarde complète</button>
     </div>
     <div class="table-wrap" id="tableWrap"></div>
   </section>
