@@ -84,7 +84,7 @@
     }
   };
 
-  window.fbLoad();
+  document.addEventListener("DOMContentLoaded", () => window.fbLoad());
 </script>
 <style>
   :root {
@@ -1104,7 +1104,7 @@ function renderPaymentHistory() {
   const container = document.getElementById('paymentHistory');
   if(!container) return;
   if(!sessionHistory.length) {
-    container.innerHTML = '<p style="font-family:var(--mono);font-size:0.82rem;color:var(--muted)">Aucune session enregistrée pour l'instant.</p>';
+    container.innerHTML = '<p style="font-family:var(--mono);font-size:0.82rem;color:var(--muted)">Aucune session enregistrée pour l&#39;instant.</p>';
     return;
   }
   container.innerHTML = sessionHistory.map((s, si) => `
