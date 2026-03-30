@@ -28,7 +28,8 @@
   let localVersion = 0; // increments on every local change
 
   // Save to Firebase — debounced to avoid rapid successive writes
-  window.fbSave = async function(playersData) {
+  window.fbSave = async function(playersData, history) {
+    if(history !== undefined) sessionHistory = history;
     localVersion++;
     const myVersion = localVersion;
     clearTimeout(saveTimeout);
@@ -36,7 +37,7 @@
       if(myVersion !== localVersion) return; // a newer save superseded this one
       try {
         isSaving = true;
-        await setDoc(dataRef, { players: JSON.stringify(playersData), version: myVersion });
+        await setDoc(dataRef, { players: JSON.stringify(playersData), history: JSON.stringify(sessionHistory), version: myVersion });
       } catch(e) { console.error("Firebase save error", e); }
       finally { setTimeout(() => isSaving = false, 500); }
     }, 300);
@@ -51,8 +52,10 @@
         if(remoteVersion > localVersion) {
           const data = JSON.parse(snap.data().players);
           players = data;
+          if(snap.data().history) sessionHistory = JSON.parse(snap.data().history);
           activeSet = new Set(players.map(p => p.name));
-          refresh(false); // false = don't re-save to Firebase
+          refresh(false);
+          renderPaymentHistory();
           showToast("Données mises à jour en temps réel");
         }
       } catch(e) { console.error("Firebase parse error", e); }
@@ -67,6 +70,7 @@
         const data = JSON.parse(snap.data().players);
         localVersion = snap.data().version || 0;
         players = data;
+        if(snap.data().history) sessionHistory = JSON.parse(snap.data().history);
         activeSet = new Set(players.map(p => p.name));
         refresh(false);
         document.getElementById('loadingOverlay').style.display = 'none';
@@ -430,6 +434,15 @@
       <div class="error-msg" id="saveErrorMsg" style="margin-top:0.5rem"></div>
       <div class="success-msg" id="saveMsg" style="margin-top:0.5rem"></div>
     </div>
+    <!-- Historique des paiements -->
+    <div class="chart-wrapper" style="margin-top:2rem">
+      <div class="chart-header">
+        <span class="chart-title">PAIEMENTS À EFFECTUER</span>
+        <span style="font-family:var(--mono);font-size:0.72rem;color:var(--muted)">2 dernières sessions</span>
+      </div>
+      <div id="paymentHistory"></div>
+    </div>
+
     </div><!-- end payPanel -->
   </section>
 
@@ -518,6 +531,7 @@ const DEFAULT_CODE = "riverbluffer92";
 let ACCESS_CODE = localStorage.getItem('pokerCode') || DEFAULT_CODE;
 let adminUnlocked = false;
 let lastPayResults = null; // stores computed balances to save as session
+let sessionHistory = []; // stores last sessions with transfers for payment tracking
 
 let players = [
   {name:"Victor",  mise:120, games:[5,11.62,4.77,9.67,0,12.8,18.8,0.7,13.15,0,11.95,3.92,-15,0,8.07], miseParSession:[]},
@@ -844,10 +858,36 @@ async function saveSessionFromPaiements() {
     await fetch('/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()});
   } catch(e){ console.warn('Netlify submit failed',e); }
 
+  // Save transfers to history (keep last 2 sessions)
+  const transfers = extractCurrentTransfers();
+  sessionHistory.unshift({
+    sessionNum,
+    date: new Date().toLocaleDateString('fr-FR'),
+    transfers: transfers.map(t => ({...t, paid: false}))
+  });
+  if(sessionHistory.length > 2) sessionHistory = sessionHistory.slice(0, 2);
+
   const msg=document.getElementById('saveMsg');
-  msg.textContent='✓ Session P'+sessionNum+' enregistrée dans le tableau, les courbes et sur Netlify !';
+  msg.textContent='✓ Session P'+sessionNum+' enregistrée !';
   lastPayResults=null;
-  refresh();
+  refresh(true, sessionHistory);
+  renderPaymentHistory();
+}
+
+function extractCurrentTransfers() {
+  const items = document.querySelectorAll('#transfersList .transfer-item');
+  const result = [];
+  items.forEach(item => {
+    const spans = item.querySelectorAll('div');
+    if(spans.length >= 4) {
+      result.push({
+        from: spans[0].textContent.trim(),
+        to: spans[2].textContent.trim(),
+        amount: parseFloat(spans[3].textContent.replace('€','').trim())
+      });
+    }
+  });
+  return result;
 }
 
 // ── PAY LOCK ──────────────────────────────────────────────────────────────────
@@ -1059,11 +1099,61 @@ function showToast(msg) {
   setTimeout(() => { t.style.transform = 'translateX(-50%) translateY(80px)'; }, 2500);
 }
 
-function refresh(save = true) {
-  renderStats(); renderPills(); buildChart(); // Firebase will load data and call refresh() renderTable();
+// ── PAYMENT HISTORY ──────────────────────────────────────────────────────────
+function renderPaymentHistory() {
+  const container = document.getElementById('paymentHistory');
+  if(!container) return;
+  if(!sessionHistory.length) {
+    container.innerHTML = '<p style="font-family:var(--mono);font-size:0.82rem;color:var(--muted)">Aucune session enregistrée pour l'instant.</p>';
+    return;
+  }
+  container.innerHTML = sessionHistory.map((s, si) => `
+    <div style="margin-bottom:1.25rem">
+      <div style="font-family:var(--display);font-size:1rem;letter-spacing:1px;color:var(--muted);margin-bottom:0.6rem">
+        POKER ${s.sessionNum} — ${s.date}
+      </div>
+      ${s.transfers.length === 0
+        ? '<p style="font-family:var(--mono);font-size:0.82rem;color:var(--muted)">Tout le monde était quitte.</p>'
+        : s.transfers.map((t, ti) => `
+          <div style="display:flex;align-items:center;gap:12px;padding:0.75rem 1.1rem;background:var(--surface);border:1px solid ${t.paid ? 'var(--accent)' : 'var(--border)'};border-radius:8px;margin-bottom:6px;opacity:${t.paid ? '0.5' : '1'}">
+            <input type="checkbox" ${t.paid ? 'checked' : ''} onchange="togglePayment(${si},${ti},this.checked)"
+              style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0">
+            <span style="font-weight:500;min-width:80px;${t.paid ? 'text-decoration:line-through;color:var(--muted)' : ''}">${t.from}</span>
+            <span style="color:var(--accent2);font-family:var(--mono)">——▶</span>
+            <span style="font-weight:500;min-width:80px;${t.paid ? 'text-decoration:line-through;color:var(--muted)' : ''}">${t.to}</span>
+            <span style="font-family:var(--display);font-size:1.2rem;color:var(--accent2);margin-left:auto">${t.amount.toFixed(2)}€</span>
+          </div>`).join('')
+      }
+    </div>`).join('');
+}
+
+function togglePayment(sessionIdx, transferIdx, paid) {
+  sessionHistory[sessionIdx].transfers[transferIdx].paid = paid;
+  if(window.fbSave) window.fbSave(players, sessionHistory);
+  renderPaymentHistory();
+}
+
+function extractCurrentTransfers() {
+  const items = document.querySelectorAll('#transfersList .transfer-item');
+  const result = [];
+  items.forEach(item => {
+    const divs = item.querySelectorAll('div');
+    if(divs.length >= 4) {
+      result.push({
+        from: divs[0].textContent.trim(),
+        to: divs[2].textContent.trim(),
+        amount: parseFloat(divs[3].textContent.replace('€','').trim()) || 0
+      });
+    }
+  });
+  return result;
+}
+
+function refresh(save = true, history) {
+  renderStats(); renderPills(); buildChart(); renderTable(); renderAvgCard();
   if(document.getElementById('sec-ranking').classList.contains('active')) renderRanking();
-  if(document.getElementById('sec-paiements').classList.contains('active')) renderPayPlayers();
-  if(save && window.fbSave) window.fbSave(players);
+  if(document.getElementById('sec-paiements').classList.contains('active')) { renderPayPlayers(); renderPaymentHistory(); }
+  if(save && window.fbSave) window.fbSave(players, history);
 }
 
 renderStats(); renderPills(); buildChart(); // Firebase will load data and call refresh()
