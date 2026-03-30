@@ -389,16 +389,7 @@
 
   <!-- PAIEMENTS -->
   <section class="section" id="sec-paiements">
-    <div id="payLock">
-      <div class="admin-lock">
-        <h2>PAIEMENTS</h2>
-        <p>Entre le code pour accéder au calcul des paiements</p>
-        <input type="password" id="payCodeInput" placeholder="••••" onkeydown="if(event.key==='Enter')tryUnlockPay()">
-        <button class="btn" style="margin:0 auto;display:block;width:200px" onclick="tryUnlockPay()">Confirmer</button>
-        <div class="error-msg" id="payLockError"></div>
-      </div>
-    </div>
-    <div id="payPanel" style="display:none">
+    <div id="payPanel">
     <div class="section-title">CALCUL DES PAIEMENTS</div>
     <p style="font-family:var(--mono);font-size:0.8rem;color:var(--muted);margin-bottom:1.25rem">Configure la partie, sélectionne les joueurs présents, renseigne le nombre de caves et les jetons finaux.</p>
 
@@ -428,10 +419,16 @@
       <div style="font-family:var(--display);font-size:1rem;letter-spacing:1px;margin-bottom:0.75rem;color:var(--muted)">VIREMENTS À EFFECTUER</div>
       <div class="transfers-list" id="transfersList"></div>
       <div class="save-banner">
-        <p>Enregistrer ces résultats comme nouvelle session dans le tableau et les courbes ?</p>
-        <button class="btn" onclick="saveSessionFromPaiements()">Enregistrer la session</button>
+        <p>Enregistrer ces résultats comme nouvelle session ?</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="password" id="saveCodeInput" placeholder="Mot de passe…"
+            style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:0.8rem;padding:6px 10px;border-radius:4px;outline:none;width:150px"
+            onkeydown="if(event.key==='Enter')saveSessionFromPaiements()">
+          <button class="btn" onclick="saveSessionFromPaiements()">Enregistrer</button>
+        </div>
       </div>
-      <div class="success-msg" id="saveMsg" style="margin-top:0.75rem"></div>
+      <div class="error-msg" id="saveErrorMsg" style="margin-top:0.5rem"></div>
+      <div class="success-msg" id="saveMsg" style="margin-top:0.5rem"></div>
     </div>
     </div><!-- end payPanel -->
   </section>
@@ -573,13 +570,7 @@ function showSection(id, btn) {
   if(id==='table') renderTable();
   if(id==='admin') renderAdmin();
   if(id==='paiements') {
-    if(!payUnlocked) {
-      document.getElementById('payLock').style.display='block';
-      document.getElementById('payPanel').style.display='none';
-      document.getElementById('payCodeInput').value='';
-    } else {
-      renderPayPlayers();
-    }
+    renderPayPlayers();
   }
 }
 
@@ -816,6 +807,13 @@ function calculerPaiements() {
 // ── SAVE PAIEMENTS → SESSION ──────────────────────────────────────────────────
 async function saveSessionFromPaiements() {
   if(!lastPayResults||!lastPayResults.length) return;
+  const code = document.getElementById('saveCodeInput').value;
+  if(code !== ACCESS_CODE) {
+    const e = document.getElementById('saveErrorMsg');
+    e.textContent = 'Code incorrect';
+    setTimeout(() => e.textContent = '', 2000);
+    return;
+  }
   const sessions=numSessions();
   const sessionNum=sessions+1;
 
