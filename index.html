@@ -348,6 +348,15 @@
   <!-- DASHBOARD -->
   <section class="section active" id="sec-dashboard">
     <div class="stats-grid" id="statsGrid"></div>
+    <!-- Moyenne par session -->
+    <div class="chart-wrapper" style="margin-bottom:1.5rem">
+      <div class="chart-header">
+        <span class="chart-title">MOYENNE DE GAIN PAR SESSION</span>
+        <span style="font-family:var(--mono);font-size:0.72rem;color:var(--muted)">sessions jouées uniquement</span>
+      </div>
+      <div id="avgSessionCard"></div>
+    </div>
+
     <div class="chart-wrapper">
       <div class="chart-header">
         <span class="chart-title">GAINS CUMULÉS</span>
@@ -518,22 +527,22 @@ let adminUnlocked = false;
 let lastPayResults = null; // stores computed balances to save as session
 
 let players = [
-  {name:"Victor",  mise:120, games:[5,11.62,4.77,9.67,0,12.8,18.8,0.7,13.15,0,11.95,3.92,-15,0,8.07]},
-  {name:"Louis",   mise:20,  games:[0,0,0,0,0,0,0,0,0,0,0,0,44.32,-0.37,-6]},
-  {name:"Joseph",  mise:25,  games:[0,0,0,0,0,0,25.25,-15,0,0,0,0,0,0,0]},
-  {name:"Martin",  mise:80,  games:[-5,-5,-0.7,-5,7.1,6.75,-5,9.65,-10,7.4,-3.5,-10,6.75,0,15.62]},
-  {name:"Zak",     mise:10,  games:[0,0,0,0,-5,0,0,0,0,11.52,0,0,0,0,0]},
-  {name:"Marcello",mise:80,  games:[2.5,10.68,8.65,5.47,0,-5,-15,8.32,-6.37,0,11.82,-5,-15,0,0]},
-  {name:"James",   mise:5,   games:[-2.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0]},
-  {name:"Milan",   mise:5,   games:[0,0,0,0,0,-2.5,0,0,0,0,0,0,0,0,0]},
-  {name:"Tom",     mise:5,   games:[0,0,0,0,0,0,0,0,0,0,0,0,0,-5,0]},
-  {name:"Anto",    mise:5,   games:[0,0,0,0,0,0,0,0,0,0,0,0,0,-5,0]},
-  {name:"Octave",  mise:10,  games:[0,0,0,0,0,0,-2.65,-5,0,0,0,0,0,0,0]},
-  {name:"Eliott",  mise:30,  games:[0,0,0,0,5.55,0,0,0,0,-10,0,0,-5,0,-2.87]},
-  {name:"Paul",    mise:130, games:[13,0,-5,4.75,2.4,-2.2,-10,1.52,8.82,-15,-20,11.42,-15,8.5,-5]},
-  {name:"Edouard", mise:40,  games:[-10,0,0,0,-10,0,0,0,-5,8.37,0,0,0,0,-10]},
-  {name:"Arthur",  mise:35,  games:[0,-10,-5,-10,0,-5,0,0,0,0,0,0,0,2.1,0]},
-  {name:"Matteo",  mise:40,  games:[-5,-6.44,-2.72,-5,0,-5,-10,0,0,0,0,0,0,0,0]},
+  {name:"Victor",  mise:120, games:[5,11.62,4.77,9.67,0,12.8,18.8,0.7,13.15,0,11.95,3.92,-15,0,8.07], miseParSession:[]},
+  {name:"Louis",   mise:16,  games:[0,0,0,0,0,0,0,0,0,0,0,0,44.32,-0.37,-6], miseParSession:[]},
+  {name:"Joseph",  mise:25,  games:[0,0,0,0,0,0,25.25,-15,0,0,0,0,0,0,0], miseParSession:[]},
+  {name:"Martin",  mise:80,  games:[-5,-5,-0.7,-5,7.1,6.75,-5,9.65,-10,7.4,-3.5,-10,6.75,0,15.62], miseParSession:[]},
+  {name:"Zak",     mise:10,  games:[0,0,0,0,-5,0,0,0,0,11.52,0,0,0,0,0], miseParSession:[]},
+  {name:"Marcello",mise:80,  games:[2.5,10.68,8.65,5.47,0,-5,-15,8.32,-6.37,0,11.82,-5,-15,0,0], miseParSession:[]},
+  {name:"James",   mise:5,   games:[-2.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0], miseParSession:[]},
+  {name:"Milan",   mise:5,   games:[0,0,0,0,0,-2.5,0,0,0,0,0,0,0,0,0], miseParSession:[]},
+  {name:"Tom",     mise:5,   games:[0,0,0,0,0,0,0,0,0,0,0,0,0,-5,0], miseParSession:[]},
+  {name:"Anto",    mise:5,   games:[0,0,0,0,0,0,0,0,0,0,0,0,0,-5,0], miseParSession:[]},
+  {name:"Octave",  mise:10,  games:[0,0,0,0,0,0,-2.65,-5,0,0,0,0,0,0,0], miseParSession:[]},
+  {name:"Eliott",  mise:30,  games:[0,0,0,0,5.55,0,0,0,0,-10,0,0,-5,0,-2.87], miseParSession:[]},
+  {name:"Paul",    mise:130, games:[13,0,-5,4.75,2.4,-2.2,-10,1.52,8.82,-15,-20,11.42,-15,8.5,-5], miseParSession:[]},
+  {name:"Edouard", mise:40,  games:[-10,0,0,0,-10,0,0,0,-5,8.37,0,0,0,0,-10], miseParSession:[]},
+  {name:"Arthur",  mise:35,  games:[0,-10,-5,-10,0,-5,0,0,0,0,0,0,0,2.1,0], miseParSession:[]},
+  {name:"Matteo",  mise:40,  games:[-5,-6.44,-2.72,-5,0,-5,-10,0,0,0,0,0,0,0,0], miseParSession:[]},
 ];
 
 const COLORS = ["#c9f542","#f5a742","#42c9f5","#f542a7","#a742f5","#42f5a7","#f56742","#4267f5","#f5e642","#42f5e6","#f54267","#67f542","#c542f5","#f5c542","#4242f5","#f59942"];
@@ -577,6 +586,31 @@ function showSection(id, btn) {
   }
 }
 
+// ── AVG SESSION ───────────────────────────────────────────────────────────────
+function renderAvgCard() {
+  const sorted = [...players]
+    .filter(p => played(p) > 0)
+    .sort((a,b) => (totalGain(b)/played(b)) - (totalGain(a)/played(a)));
+
+  const maxAbs = Math.max(...sorted.map(p => Math.abs(totalGain(p)/played(p))));
+
+  document.getElementById('avgSessionCard').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${sorted.map(p => {
+        const avg = totalGain(p)/played(p);
+        const pos = avg >= 0;
+        const barW = Math.round(Math.abs(avg)/maxAbs*100);
+        return `<div style="display:grid;grid-template-columns:110px 1fr 70px;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span style="font-family:var(--mono);font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</span>
+          <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden">
+            <div style="width:${barW}%;height:100%;background:${pos?'var(--accent)':'var(--red)'};border-radius:2px"></div>
+          </div>
+          <span style="font-family:var(--mono);font-size:0.8rem;text-align:right;color:${pos?'var(--accent)':'var(--red)'}">${pos?'+':''}${avg.toFixed(2)}€</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
 // ── STATS ─────────────────────────────────────────────────────────────────────
 function renderStats() {
   const sorted=[...players].sort((a,b)=>totalGain(b)-totalGain(a));
@@ -597,8 +631,7 @@ function renderStats() {
     {label:'Plus gros gain en une soirée',value:'+'+biggestSingleWin.val.toFixed(2)+'€',sub:biggestSingleWin.name,cls:'pos'},
     {label:'Plus grosse perte en une soirée',value:biggestSingleLoss.val.toFixed(2)+'€',sub:biggestSingleLoss.name,cls:'neg'},
     {label:'Meilleur taux de victoire',value:Math.round(winRate(highestWinRate)*100)+'%',sub:highestWinRate.name+' ('+played(highestWinRate)+' sessions)',cls:'pos'},
-    {label:'Joueur le plus régulier',value:mostConsistent.name,sub:'taux victoire '+Math.round(winRate(mostConsistent)*100)+'% — ±'+Math.sqrt(variance(mostConsistent)).toFixed(2)+'€ écart-type',cls:'',type:'orange'},
-    {label:'Plus grand retournement',value:'+'+biggestComeback(biggestComebackP).toFixed(2)+'€',sub:biggestComebackP.name,cls:'pos'},
+    {label:'Joueur le plus régulier',value:mostConsistent.name,sub:'taux victoire '+Math.round(winRate(mostConsistent)*100)+'% — moy. '+(played(mostConsistent)>0?(totalGain(mostConsistent)/played(mostConsistent)).toFixed(2):0)+'€/session',cls:'',type:'orange'},
     {label:'Sessions jouées',value:numSessions(),sub:players.length+' joueurs au total',cls:'',type:'neutral'},
   ];
 
@@ -608,6 +641,10 @@ function renderStats() {
       <div class="stat-value ${s.cls||''}">${s.value}</div>
       <div class="stat-sub">${s.sub}</div>
     </div>`).join('');
+
+  // Render avg per session card separately (always last)
+  const avgCard = document.getElementById('avgSessionCard');
+  if(avgCard) renderAvgCard();
 }
 
 // ── CHART ─────────────────────────────────────────────────────────────────────
@@ -786,11 +823,18 @@ async function saveSessionFromPaiements() {
   const sessionNum=sessions+1;
 
   const resultMap=new Map(lastPayResults.map(p=>[p.name,p.balance]));
+  const miseMap=new Map(lastPayResults.map(p=>[p.name,p.misePaye]));
+
   players.forEach(p=>{
     while(p.games.length<sessions) p.games.push(0);
     p.games.push(resultMap.get(p.name)||0);
-    const r=lastPayResults.find(r=>r.name===p.name);
-    if(r) p.mise=Math.round((p.mise+r.misePaye)*100)/100;
+    // Store mise paid for this session so we can revert on delete
+    if(!p.miseParSession) p.miseParSession=[];
+    // Pad to match current games length before pushing new session
+    while(p.miseParSession.length < p.games.length - 1) p.miseParSession.push(0);
+    const misePaid=miseMap.get(p.name)||0;
+    p.miseParSession.push(misePaid);
+    if(misePaid>0) p.mise=Math.round((p.mise+misePaid)*100)/100;
   });
 
   // Soumettre à Netlify Forms en arrière-plan
@@ -863,7 +907,7 @@ function addPlayer() {
   if(!name) return;
   const sessions=numSessions();
   const games=Array.from({length:sessions},(_,i)=>parseFloat(document.getElementById('nj_p'+i).value)||0);
-  players.push({name,mise,games}); activeSet.add(name);
+  players.push({name,mise,games,miseParSession:Array(sessions).fill(0)}); activeSet.add(name);
   const msg=document.getElementById('playerMsg');
   msg.textContent='✓ '+name+' ajouté !';
   setTimeout(()=>msg.textContent='',3000);
@@ -994,8 +1038,15 @@ function deleteSession() {
 
   players.forEach(p => {
     if(idx < p.games.length) {
-      // also revert mise for players who were present
-      const v = p.games[idx];
+      // Revert mise using stored value if available
+      if(!p.miseParSession) p.miseParSession = [];
+      // Pad miseParSession to match games length if needed
+      while(p.miseParSession.length < p.games.length) p.miseParSession.push(0);
+      const miseToRevert = p.miseParSession[idx] || 0;
+      if(miseToRevert > 0) {
+        p.mise = Math.max(0, Math.round((p.mise - miseToRevert) * 100) / 100);
+      }
+      p.miseParSession.splice(idx, 1);
       p.games.splice(idx, 1);
     }
   });
