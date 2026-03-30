@@ -628,11 +628,11 @@ function renderStats() {
   const stats=[
     {label:'Plus gros gain',value:(totalGain(best)>=0?'+':'')+totalGain(best).toFixed(2)+'€',sub:best.name,cls:'pos'},
     {label:'Plus gros déficit',value:totalGain(worst).toFixed(2)+'€',sub:worst.name,cls:'neg'},
-    {label:'Meilleur rendement',value:Math.round(roi(bestROI)*100)+'%',sub:bestROI.name+' — mise '+bestROI.mise+'€',cls:'pos'},
+    {label:'Meilleur rendement',value:Math.round(roi(bestROI)*100)+'%',sub:bestROI.name+' — mise '+bestROI.mise+'€ · gain '+(totalGain(bestROI)>=0?'+':'')+totalGain(bestROI).toFixed(2)+'€',cls:'pos'},
     {label:'Plus gros gain en une soirée',value:'+'+biggestSingleWin.val.toFixed(2)+'€',sub:biggestSingleWin.name,cls:'pos'},
     {label:'Plus grosse perte en une soirée',value:biggestSingleLoss.val.toFixed(2)+'€',sub:biggestSingleLoss.name,cls:'neg'},
     {label:'Meilleur taux de victoire',value:Math.round(winRate(highestWinRate)*100)+'%',sub:highestWinRate.name+' ('+played(highestWinRate)+' sessions)',cls:'pos'},
-    {label:'Joueur le plus régulier',value:mostConsistent.name,sub:'taux victoire '+Math.round(winRate(mostConsistent)*100)+'% — moy. '+(played(mostConsistent)>0?(totalGain(mostConsistent)/played(mostConsistent)).toFixed(2):0)+'€/session',cls:'',type:'orange'},
+    {label:'Joueur le plus régulier',value:(()=>{const avg=played(mostConsistent)>0?totalGain(mostConsistent)/played(mostConsistent):0;return (avg>=0?'+':'')+avg.toFixed(2)+'€/session';})(),sub:mostConsistent.name+' — taux victoire '+Math.round(winRate(mostConsistent)*100)+'%',cls:'pos',type:'orange'},
     {label:'Sessions jouées',value:numSessions(),sub:players.length+' joueurs au total',cls:'',type:'neutral'},
   ];
 
@@ -1085,10 +1085,13 @@ function deleteSession() {
     }
   });
 
+  // Also remove from sessionHistory if present
+  sessionHistory = sessionHistory.filter(s => s.sessionNum !== sessionNum);
+
   const msg = document.getElementById('deleteSessionMsg');
   msg.textContent = '✓ Session Poker ' + sessionNum + ' supprimée.';
   setTimeout(() => msg.textContent = '', 3000);
-  refresh();
+  refresh(true, sessionHistory);
   renderDeleteSessionSelect();
 }
 
@@ -1103,31 +1106,38 @@ function showToast(msg) {
 function renderPaymentHistory() {
   const container = document.getElementById('paymentHistory');
   if(!container) return;
-  if(!sessionHistory.length) {
-    container.innerHTML = '<p style="font-family:var(--mono);font-size:0.82rem;color:var(--muted)">Aucune session enregistrée pour l&#39;instant.</p>';
+  if(!sessionHistory || !sessionHistory.length) {
+    container.innerHTML = '<p style="font-family:var(--mono);font-size:0.82rem;color:var(--muted)">Aucune session enregistree pour l instant.</p>';
     return;
   }
-  container.innerHTML = sessionHistory.map((s, si) => `
-    <div style="margin-bottom:1.25rem">
-      <div style="font-family:var(--display);font-size:1rem;letter-spacing:1px;color:var(--muted);margin-bottom:0.6rem">
-        POKER ${s.sessionNum} — ${s.date}
+  container.innerHTML = sessionHistory.map((s, si) => {
+    const allPaid = s.transfers.length > 0 && s.transfers.every(t => t.paid);
+    return `
+    <div style="margin-bottom:1.5rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+        <div style="font-family:var(--display);font-size:1.1rem;letter-spacing:1px;color:${allPaid ? 'var(--accent)' : 'var(--text)'}">
+          POKER ${s.sessionNum} <span style="font-size:0.75rem;font-family:var(--mono);color:var(--muted);letter-spacing:0">${s.date}</span>
+        </div>
+        ${allPaid ? '<span style="font-family:var(--mono);font-size:0.7rem;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:2px 8px">SOLDÉ</span>' : ''}
       </div>
       ${s.transfers.length === 0
-        ? '<p style="font-family:var(--mono);font-size:0.82rem;color:var(--muted)">Tout le monde était quitte.</p>'
+        ? '<p style="font-family:var(--mono);font-size:0.82rem;color:var(--muted);padding:0.75rem;background:var(--surface);border-radius:8px">Tout le monde etait quitte.</p>'
         : s.transfers.map((t, ti) => `
-          <div style="display:flex;align-items:center;gap:12px;padding:0.75rem 1.1rem;background:var(--surface);border:1px solid ${t.paid ? 'var(--accent)' : 'var(--border)'};border-radius:8px;margin-bottom:6px;opacity:${t.paid ? '0.5' : '1'}">
-            <input type="checkbox" ${t.paid ? 'checked' : ''} onchange="togglePayment(${si},${ti},this.checked)"
-              style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0">
-            <span style="font-weight:500;min-width:80px;${t.paid ? 'text-decoration:line-through;color:var(--muted)' : ''}">${t.from}</span>
-            <span style="color:var(--accent2);font-family:var(--mono)">——▶</span>
-            <span style="font-weight:500;min-width:80px;${t.paid ? 'text-decoration:line-through;color:var(--muted)' : ''}">${t.to}</span>
-            <span style="font-family:var(--display);font-size:1.2rem;color:var(--accent2);margin-left:auto">${t.amount.toFixed(2)}€</span>
+          <div onclick="togglePayment(${si},${ti},!${t.paid})" style="display:flex;align-items:center;gap:12px;padding:0.75rem 1.1rem;background:var(--surface);border:1px solid ${t.paid ? 'var(--accent)' : 'var(--border)'};border-radius:8px;margin-bottom:6px;opacity:${t.paid ? '0.45' : '1'};cursor:pointer;transition:all 0.15s">
+            <div style="width:18px;height:18px;border-radius:4px;border:1.5px solid ${t.paid ? 'var(--accent)' : 'var(--border2)'};background:${t.paid ? 'var(--accent)' : 'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#0d0d0f;font-size:11px;font-weight:700">${t.paid ? '✓' : ''}</div>
+            <span style="font-weight:500;min-width:80px;font-size:0.9rem;${t.paid ? 'text-decoration:line-through;color:var(--muted)' : ''}">${t.from}</span>
+            <span style="color:var(--accent2);font-family:var(--mono);font-size:0.9rem">──▶</span>
+            <span style="font-weight:500;min-width:80px;font-size:0.9rem;${t.paid ? 'text-decoration:line-through;color:var(--muted)' : ''}">${t.to}</span>
+            <span style="font-family:var(--display);font-size:1.25rem;color:${t.paid ? 'var(--muted)' : 'var(--accent2)'};margin-left:auto">${t.amount.toFixed(2)}€</span>
           </div>`).join('')
       }
-    </div>`).join('');
+    </div>
+    ${si < sessionHistory.length - 1 ? '<hr style="border:none;border-top:1px solid var(--border);margin-bottom:1.5rem">' : ''}`;
+  }).join('');
 }
 
 function togglePayment(sessionIdx, transferIdx, paid) {
+  if(!sessionHistory[sessionIdx]) return;
   sessionHistory[sessionIdx].transfers[transferIdx].paid = paid;
   if(window.fbSave) window.fbSave(players, sessionHistory);
   renderPaymentHistory();
