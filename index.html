@@ -348,15 +348,6 @@
   <!-- DASHBOARD -->
   <section class="section active" id="sec-dashboard">
     <div class="stats-grid" id="statsGrid"></div>
-    <!-- Moyenne par session -->
-    <div class="chart-wrapper" style="margin-bottom:1.5rem">
-      <div class="chart-header">
-        <span class="chart-title">MOYENNE DE GAIN PAR SESSION</span>
-        <span style="font-family:var(--mono);font-size:0.72rem;color:var(--muted)">sessions jouées uniquement</span>
-      </div>
-      <div id="avgSessionCard"></div>
-    </div>
-
     <div class="chart-wrapper">
       <div class="chart-header">
         <span class="chart-title">GAINS CUMULÉS</span>
@@ -367,6 +358,15 @@
       </div>
       <div class="pills" id="pills"></div>
       <div class="chart-canvas-wrap"><canvas id="mainChart"></canvas></div>
+    </div>
+
+    <!-- Moyenne par session -->
+    <div class="chart-wrapper">
+      <div class="chart-header">
+        <span class="chart-title">MOYENNE DE GAIN PAR SESSION</span>
+        <span style="font-family:var(--mono);font-size:0.72rem;color:var(--muted)">sessions jouées uniquement</span>
+      </div>
+      <div id="avgSessionCard"></div>
     </div>
   </section>
 
