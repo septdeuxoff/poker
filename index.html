@@ -391,7 +391,7 @@
   <section class="section" id="sec-paiements">
     <div id="payPanel">
     <div class="section-title">CALCUL DES PAIEMENTS</div>
-    <p style="font-family:var(--mono);font-size:0.8rem;color:var(--muted);margin-bottom:1.25rem">Configure la partie, sélectionne les joueurs présents, renseigne le nombre de caves et les jetons finaux.</p>
+    
 
     <div class="pay-config">
       <div class="pay-config-card">
@@ -438,7 +438,6 @@
     <div id="adminLock">
       <div class="admin-lock">
         <h2>ACCÈS ADMIN</h2>
-        <p>Entre le code pour gérer les données</p>
         <input type="password" id="adminCodeInput" placeholder="••••" onkeydown="if(event.key==='Enter')tryUnlockAdmin()">
         <button class="btn" style="margin:0 auto;display:block;width:200px" onclick="tryUnlockAdmin()">Confirmer</button>
         <div class="error-msg" id="adminError"></div>
