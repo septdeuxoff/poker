@@ -56,6 +56,9 @@
           activeSet = buildActiveSet();
           refresh(false);
           renderPaymentHistory();
+          renderDeleteSessionSelect();
+          renderEditSessionSelect();
+          renderExportSelect();
           showToast("Données mises à jour en temps réel");
         }
       } catch(e) { console.error("Firebase parse error", e); }
@@ -73,6 +76,9 @@
         if(snap.data().history) sessionHistory = JSON.parse(snap.data().history);
         activeSet = buildActiveSet();
         refresh(false);
+        renderDeleteSessionSelect();
+        renderEditSessionSelect();
+        renderExportSelect();
         document.getElementById('loadingOverlay').style.display = 'none';
       } else {
         await window.fbSave(players);
@@ -1055,7 +1061,10 @@ function renderAdmin() {
       <button class="btn danger sm" onclick="removePlayer(${i})">Supprimer</button>
     </div>`).join('');
   renderDeleteSessionSelect();
-  document.getElementById('deleteSessionSelect').addEventListener('change', updateDeleteSessionPreview);
+  // Re-add listener each time (remove first to avoid duplicates)
+  const delSel = document.getElementById('deleteSessionSelect');
+  delSel.removeEventListener('change', updateDeleteSessionPreview);
+  delSel.addEventListener('change', updateDeleteSessionPreview);
   renderEditSessionSelect();
 }
 
