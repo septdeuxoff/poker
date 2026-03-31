@@ -393,7 +393,34 @@
     <div style="font-family:var(--display);font-size:1rem;letter-spacing:1px;margin-bottom:0.75rem;color:var(--muted)">JOUEURS PRÉSENTS</div>
     <div class="pay-players-grid" id="payPlayersGrid"></div>
 
-    <button class="btn orange" onclick="calculerPaiements()">Calculer les paiements</button>
+    <!-- Mini form to add a new player inline -->
+    <div id="addPlayerInline" style="display:none;background:var(--surface);border:1px solid var(--accent);border-radius:8px;padding:1.1rem 1.25rem;margin-bottom:1rem">
+      <div style="font-family:var(--display);font-size:1rem;letter-spacing:1px;margin-bottom:0.85rem;color:var(--accent)">NOUVEAU JOUEUR</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;flex-wrap:wrap">
+        <div class="form-group" style="margin:0">
+          <label>Nom</label>
+          <input id="np_name" placeholder="Prénom" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:0.85rem;padding:7px 10px;border-radius:4px;outline:none;width:100%">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Caves</label>
+          <input id="np_caves" type="number" value="1" min="1" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:0.85rem;padding:7px 10px;border-radius:4px;outline:none;width:100%">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label>Jetons finaux</label>
+          <input id="np_final" type="number" value="0" min="0" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:0.85rem;padding:7px 10px;border-radius:4px;outline:none;width:100%">
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn" onclick="addPlayerFromPay()">Ajouter</button>
+          <button class="btn ghost" onclick="document.getElementById('addPlayerInline').style.display='none'">✕</button>
+        </div>
+      </div>
+      <div class="success-msg" id="npMsg" style="margin-top:0.5rem"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap">
+      <button class="btn orange" onclick="calculerPaiements()">Calculer les paiements</button>
+      <button class="btn ghost" onclick="toggleAddPlayerInline()" id="addPlayerBtn" title="Ajouter un joueur à cette session">+ Joueur</button>
+    </div>
 
     <div class="pay-results" id="payResults" style="display:none;margin-top:1.5rem">
       <h3>RÉSULTAT DE LA SOIRÉE</h3>
@@ -403,10 +430,11 @@
       <div class="save-banner">
         <p>Enregistrer ces résultats comme nouvelle session ?</p>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="password" id="saveCodeInput" placeholder="Mot de passe…"
-            style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:0.8rem;padding:6px 10px;border-radius:4px;outline:none;width:150px"
-            onkeydown="if(event.key==='Enter')saveSessionFromPaiements()">
-          <button class="btn" onclick="saveSessionFromPaiements()">Enregistrer</button>
+          <form onsubmit="saveSessionFromPaiements();return false;" autocomplete="on" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="password" id="saveCodeInput" name="password" autocomplete="current-password" placeholder="Mot de passe…"
+              style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:0.8rem;padding:6px 10px;border-radius:4px;outline:none;width:150px">
+            <button type="submit" class="btn">Enregistrer</button>
+          </form>
         </div>
       </div>
       <div class="error-msg" id="saveErrorMsg" style="margin-top:0.5rem"></div>
@@ -429,25 +457,16 @@
     <div id="adminLock">
       <div class="admin-lock">
         <h2>ACCÈS ADMIN</h2>
-        <input type="password" id="adminCodeInput" placeholder="••••" onkeydown="if(event.key==='Enter')tryUnlockAdmin()">
-        <button class="btn" style="margin:0 auto;display:block;width:200px" onclick="tryUnlockAdmin()">Confirmer</button>
+        <form onsubmit="tryUnlockAdmin();return false;" autocomplete="on" style="display:contents">
+          <input type="password" id="adminCodeInput" name="password" autocomplete="current-password" placeholder="••••">
+          <button type="submit" class="btn" style="margin:0 auto;display:block;width:200px">Confirmer</button>
+        </form>
         <div class="error-msg" id="adminError"></div>
       </div>
     </div>
     <div id="adminPanel" style="display:none">
       <div class="section-title">GÉRER LES DONNÉES</div>
       <div class="admin-grid">
-
-        <!-- 1. AJOUTER UN JOUEUR -->
-        <div class="admin-card">
-          <h3>AJOUTER UN JOUEUR</h3>
-          <div class="form-group"><label>Nom</label><input id="nj_name" placeholder="Prénom"></div>
-          <div class="form-group"><label>Mise totale engagée (€)</label><input id="nj_mise" type="number" placeholder="Ex: 20"></div>
-          <p style="font-size:0.75rem;color:var(--muted);font-family:var(--mono);margin-bottom:0.75rem">Résultats des sessions passées (0 si absent)</p>
-          <div id="njSessionInputs"></div>
-          <div class="success-msg" id="playerMsg"></div>
-          <button class="btn" style="margin-top:0.5rem;width:100%" onclick="addPlayer()">Ajouter le joueur</button>
-        </div>
 
         <!-- 2. MODIFIER / SUPPRIMER UNE SESSION -->
         <div class="admin-card">
@@ -475,11 +494,13 @@
         <!-- 3. MOT DE PASSE -->
         <div class="admin-card">
           <h3>MOT DE PASSE</h3>
-          <div class="form-group"><label>Mot de passe actuel</label><input type="password" id="pw_old" placeholder="••••"></div>
-          <div class="form-group"><label>Nouveau mot de passe</label><input type="password" id="pw_new" placeholder="••••"></div>
-          <div class="form-group"><label>Confirmer</label><input type="password" id="pw_confirm" placeholder="••••"></div>
-          <div class="error-msg" id="pwMsg"></div>
-          <button class="btn" style="margin-top:0.25rem;width:100%" onclick="changePassword()">Changer</button>
+          <form onsubmit="changePassword();return false;" autocomplete="on">
+            <div class="form-group"><label>Mot de passe actuel</label><input type="password" id="pw_old" name="current-password" autocomplete="current-password" placeholder="••••"></div>
+            <div class="form-group"><label>Nouveau mot de passe</label><input type="password" id="pw_new" name="new-password" autocomplete="new-password" placeholder="••••"></div>
+            <div class="form-group"><label>Confirmer</label><input type="password" id="pw_confirm" name="new-password" autocomplete="new-password" placeholder="••••"></div>
+            <div class="error-msg" id="pwMsg"></div>
+            <button type="submit" class="btn" style="margin-top:0.25rem;width:100%">Changer</button>
+          </form>
         </div>
 
         <!-- 4. IMPORTER (compact) -->
@@ -1233,6 +1254,53 @@ function extractCurrentTransfers() {
     }
   });
   return result;
+}
+
+// ── ADD PLAYER FROM PAY ──────────────────────────────────────────────────────
+function toggleAddPlayerInline() {
+  const el = document.getElementById('addPlayerInline');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  if(el.style.display === 'block') document.getElementById('np_name').focus();
+}
+
+function addPlayerFromPay() {
+  const name = document.getElementById('np_name').value.trim();
+  if(!name) return;
+  const caves = parseFloat(document.getElementById('np_caves').value) || 1;
+  const final = parseFloat(document.getElementById('np_final').value) || 0;
+  const valeur = parseFloat(document.getElementById('pc_valeur').value) || 5;
+  const sessions = numSessions();
+
+  // Add player to global players array
+  const mise = caves * valeur;
+  const games = Array(sessions).fill(0);
+  players.push({name, mise, games, miseParSession: Array(sessions).fill(0)});
+  activeSet.add(name);
+
+  // Auto-select in pay grid and pre-fill
+  paySelected.add(name);
+  renderPayPlayers();
+
+  // Pre-fill the new player's inputs
+  setTimeout(() => {
+    const playerIdx = players.length - 1;
+    const cavesEl = document.getElementById('pc_caves_' + playerIdx);
+    const finalEl = document.getElementById('pc_final_' + playerIdx);
+    if(cavesEl) cavesEl.value = caves;
+    if(finalEl) finalEl.value = final;
+  }, 50);
+
+  const msg = document.getElementById('npMsg');
+  msg.textContent = '✓ ' + name + ' ajouté !';
+  setTimeout(() => {
+    msg.textContent = '';
+    document.getElementById('addPlayerInline').style.display = 'none';
+    document.getElementById('np_name').value = '';
+    document.getElementById('np_caves').value = 1;
+    document.getElementById('np_final').value = 0;
+  }, 1500);
+
+  refresh(true);
 }
 
 // ── EDIT SESSION ─────────────────────────────────────────────────────────────
