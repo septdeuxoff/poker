@@ -369,6 +369,10 @@
   <section class="section" id="sec-paiements">
     <div id="payPanel">
     <div class="section-title">CALCUL DES PAIEMENTS</div>
+    <div id="editModeBanner" style="display:none;background:rgba(245,167,66,0.1);border:1px solid rgba(245,167,66,0.3);border-radius:8px;padding:0.75rem 1.1rem;margin-bottom:1rem;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      <span style="font-family:var(--mono);font-size:0.8rem;color:var(--accent2)"></span>
+      <button class="btn ghost sm" onclick="cancelEdit()">Annuler la modification</button>
+    </div>
     
 
     <div class="pay-config">
@@ -433,8 +437,10 @@
     <div id="adminPanel" style="display:none">
       <div class="section-title">GÉRER LES DONNÉES</div>
       <div class="admin-grid">
+
+        <!-- 1. AJOUTER UN JOUEUR -->
         <div class="admin-card">
-          <h3>NOUVEAU JOUEUR</h3>
+          <h3>AJOUTER UN JOUEUR</h3>
           <div class="form-group"><label>Nom</label><input id="nj_name" placeholder="Prénom"></div>
           <div class="form-group"><label>Mise totale engagée (€)</label><input id="nj_mise" type="number" placeholder="Ex: 20"></div>
           <p style="font-size:0.75rem;color:var(--muted);font-family:var(--mono);margin-bottom:0.75rem">Résultats des sessions passées (0 si absent)</p>
@@ -442,23 +448,31 @@
           <div class="success-msg" id="playerMsg"></div>
           <button class="btn" style="margin-top:0.5rem;width:100%" onclick="addPlayer()">Ajouter le joueur</button>
         </div>
+
+        <!-- 2. MODIFIER / SUPPRIMER UNE SESSION -->
         <div class="admin-card">
-          <h3>IMPORTER DES DONNÉES</h3>
-          <div class="import-zone" id="importZone" onclick="document.getElementById('fileInput').click()"
-               ondragover="event.preventDefault();this.classList.add('drag')"
-               ondragleave="this.classList.remove('drag')"
-               ondrop="handleDrop(event)"
-               style="padding:1.5rem;margin-bottom:0">
-            <div style="font-size:1.8rem;margin-bottom:0.4rem">📂</div>
-            <strong style="font-size:0.9rem">Glisse ton fichier ici</strong>
-            <p style="margin-top:0.3rem;font-size:0.75rem">
-              <strong style="color:var(--accent)">.json</strong> sauvegarde complète &nbsp;·&nbsp;
-              <strong style="color:var(--text)">.csv</strong> tableur
-            </p>
+          <h3>SESSIONS</h3>
+          <div style="margin-bottom:1.25rem">
+            <p style="font-family:var(--mono);font-size:0.7rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.6rem">Modifier</p>
+            <div class="form-group" style="margin-bottom:0.5rem">
+              <select id="editSessionSelect"></select>
+            </div>
+            <div id="editSessionInfo" style="font-family:var(--mono);font-size:0.72rem;color:var(--muted);margin-bottom:0.6rem;line-height:1.5"></div>
+            <button class="btn" style="width:100%" onclick="loadSessionForEdit()">Charger pour modification</button>
           </div>
-          <input type="file" id="fileInput" accept=".csv,.json" style="display:none" onchange="handleFile(this.files[0])">
-          <div id="importMsg" style="margin-top:0.75rem;font-family:var(--mono);font-size:0.8rem;"></div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">
+          <div>
+            <p style="font-family:var(--mono);font-size:0.7rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.6rem">Supprimer</p>
+            <div class="form-group" style="margin-bottom:0.5rem">
+              <select id="deleteSessionSelect"></select>
+            </div>
+            <div id="deleteSessionPreview" style="font-family:var(--mono);font-size:0.72rem;color:var(--muted);margin-bottom:0.6rem;max-height:100px;overflow-y:auto"></div>
+            <div class="success-msg" id="deleteSessionMsg"></div>
+            <button class="btn danger" style="width:100%" onclick="deleteSession()">Supprimer cette session</button>
+          </div>
         </div>
+
+        <!-- 3. MOT DE PASSE -->
         <div class="admin-card">
           <h3>MOT DE PASSE</h3>
           <div class="form-group"><label>Mot de passe actuel</label><input type="password" id="pw_old" placeholder="••••"></div>
@@ -467,21 +481,28 @@
           <div class="error-msg" id="pwMsg"></div>
           <button class="btn" style="margin-top:0.25rem;width:100%" onclick="changePassword()">Changer</button>
         </div>
+
+        <!-- 4. IMPORTER (compact) -->
         <div class="admin-card">
-          <h3>SUPPRIMER UN JOUEUR</h3>
-          <div id="deleteList" style="display:flex;flex-direction:column;gap:6px"></div>
-        </div>
-        <div class="admin-card">
-          <h3>SUPPRIMER UNE SESSION</h3>
-          <p style="font-size:0.78rem;color:var(--muted);font-family:var(--mono);margin-bottom:1rem">Supprime définitivement une session pour tous les joueurs.</p>
-          <div class="form-group">
-            <label>Choisir la session</label>
-            <select id="deleteSessionSelect"></select>
+          <h3>IMPORTER DES DONNÉES</h3>
+          <div class="import-zone" id="importZone" onclick="document.getElementById('fileInput').click()"
+               ondragover="event.preventDefault();this.classList.add('drag')"
+               ondragleave="this.classList.remove('drag')"
+               ondrop="handleDrop(event)"
+               style="padding:0.9rem 1rem;display:flex;align-items:center;gap:12px;text-align:left;border-radius:6px;margin-bottom:0">
+            <span style="font-size:1.4rem;flex-shrink:0">📂</span>
+            <div>
+              <strong style="font-size:0.85rem;display:block">Glisse ton fichier ici</strong>
+              <span style="font-size:0.72rem;color:var(--muted);font-family:var(--mono)">
+                <strong style="color:var(--accent)">.json</strong> sauvegarde &nbsp;·&nbsp; <strong style="color:var(--text)">.csv</strong> tableur
+              </span>
+            </div>
           </div>
-          <div id="deleteSessionPreview" style="font-family:var(--mono);font-size:0.78rem;color:var(--muted);margin-bottom:1rem;max-height:140px;overflow-y:auto"></div>
-          <div class="success-msg" id="deleteSessionMsg"></div>
-          <button class="btn danger" style="width:100%" onclick="deleteSession()">Supprimer cette session</button>
+          <input type="file" id="fileInput" accept=".csv,.json" style="display:none" onchange="handleFile(this.files[0])">
+          <div id="importMsg" style="margin-top:0.6rem;font-family:var(--mono);font-size:0.78rem;"></div>
+          <div id="deleteList" style="display:none"></div>
         </div>
+
       </div>
     </div>
   </section>
@@ -807,6 +828,16 @@ function calculerPaiements() {
 }
 
 // ── SAVE PAIEMENTS → SESSION ──────────────────────────────────────────────────
+function cancelEdit() {
+  window.editingSessionIdx = undefined;
+  window.editingSessionNum = undefined;
+  const banner = document.getElementById('editModeBanner');
+  if(banner) banner.style.display = 'none';
+  paySelected = new Set();
+  renderPayPlayers();
+  document.getElementById('payResults').style.display = 'none';
+}
+
 async function saveSessionFromPaiements() {
   if(!lastPayResults||!lastPayResults.length) return;
   const code = document.getElementById('saveCodeInput').value;
@@ -816,6 +847,55 @@ async function saveSessionFromPaiements() {
     setTimeout(() => e.textContent = '', 2000);
     return;
   }
+
+  const isEdit = window.editingSessionIdx !== undefined;
+
+  if(isEdit) {
+    // EDIT MODE: replace existing session data
+    const editIdx = window.editingSessionIdx;
+    const editSessionNum = window.editingSessionNum;
+    const gameIdx = editSessionNum - 1; // 0-based index in games array
+
+    const resultMap = new Map(lastPayResults.map(p=>[p.name, p.balance]));
+    const miseMap = new Map(lastPayResults.map(p=>[p.name, p.misePaye]));
+
+    players.forEach(p => {
+      if(gameIdx < p.games.length) {
+        // Revert old mise
+        const oldMise = (p.miseParSession && p.miseParSession[gameIdx]) || 0;
+        if(oldMise > 0) p.mise = Math.max(0, Math.round((p.mise - oldMise) * 100) / 100);
+        // Set new game result
+        p.games[gameIdx] = resultMap.get(p.name) || 0;
+        // Set new mise
+        if(!p.miseParSession) p.miseParSession = [];
+        while(p.miseParSession.length <= gameIdx) p.miseParSession.push(0);
+        const newMise = miseMap.get(p.name) || 0;
+        p.miseParSession[gameIdx] = newMise;
+        if(newMise > 0) p.mise = Math.round((p.mise + newMise) * 100) / 100;
+      }
+    });
+
+    // Update sessionHistory entry
+    const transfers = extractCurrentTransfers();
+    const jetonsSaved = parseFloat(document.getElementById('pc_jetons').value)||1000;
+    const valeurSaved = parseFloat(document.getElementById('pc_valeur').value)||5;
+    const participantsSaved = lastPayResults.map(p => ({ name: p.name, caves: p.caves, final: p.final }));
+    sessionHistory[editIdx] = {
+      ...sessionHistory[editIdx],
+      transfers: transfers.map(t => ({...t, paid: false})),
+      snapshot: { jetons: jetonsSaved, valeur: valeurSaved, participants: participantsSaved }
+    };
+
+    const msg = document.getElementById('saveMsg');
+    msg.textContent = '✓ Session P' + editSessionNum + ' modifiée !';
+    lastPayResults = null;
+    cancelEdit();
+    refresh(true, sessionHistory);
+    renderPaymentHistory();
+    return;
+  }
+
+  // NEW SESSION MODE
   const sessions=numSessions();
   const sessionNum=sessions+1;
 
@@ -825,9 +905,7 @@ async function saveSessionFromPaiements() {
   players.forEach(p=>{
     while(p.games.length<sessions) p.games.push(0);
     p.games.push(resultMap.get(p.name)||0);
-    // Store mise paid for this session so we can revert on delete
     if(!p.miseParSession) p.miseParSession=[];
-    // Pad to match current games length before pushing new session
     while(p.miseParSession.length < p.games.length - 1) p.miseParSession.push(0);
     const misePaid=miseMap.get(p.name)||0;
     p.miseParSession.push(misePaid);
@@ -847,14 +925,22 @@ async function saveSessionFromPaiements() {
     await fetch('/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()});
   } catch(e){ console.warn('Netlify submit failed',e); }
 
-  // Save transfers to history (keep last 2 sessions)
+  // Save transfers + full session snapshot for editing
   const transfers = extractCurrentTransfers();
+  const jetonsSaved = parseFloat(document.getElementById('pc_jetons').value)||1000;
+  const valeurSaved = parseFloat(document.getElementById('pc_valeur').value)||5;
+  const participantsSaved = lastPayResults.map(p => ({
+    name: p.name,
+    caves: p.caves,
+    final: p.final
+  }));
   sessionHistory.unshift({
     sessionNum,
     date: new Date().toLocaleDateString('fr-FR'),
-    transfers: transfers.map(t => ({...t, paid: false}))
+    transfers: transfers.map(t => ({...t, paid: false})),
+    snapshot: { jetons: jetonsSaved, valeur: valeurSaved, participants: participantsSaved }
   });
-  if(sessionHistory.length > 2) sessionHistory = sessionHistory.slice(0, 2);
+  if(sessionHistory.length > 50) sessionHistory = sessionHistory.slice(0, 50);
 
   const msg=document.getElementById('saveMsg');
   msg.textContent='✓ Session P'+sessionNum+' enregistrée !';
@@ -922,6 +1008,7 @@ function renderAdmin() {
     </div>`).join('');
   renderDeleteSessionSelect();
   document.getElementById('deleteSessionSelect').addEventListener('change', updateDeleteSessionPreview);
+  renderEditSessionSelect();
 }
 
 function addPlayer() {
@@ -1147,6 +1234,81 @@ function extractCurrentTransfers() {
   });
   return result;
 }
+
+// ── EDIT SESSION ─────────────────────────────────────────────────────────────
+function renderEditSessionSelect() {
+  const sel = document.getElementById('editSessionSelect');
+  if(!sel) return;
+  if(!sessionHistory.length) {
+    sel.innerHTML = '<option>Aucune session enregistree</option>';
+    const info = document.getElementById('editSessionInfo');
+    if(info) info.textContent = '';
+    return;
+  }
+  sel.innerHTML = sessionHistory.map((s,i) =>
+    `<option value="${i}">Poker ${s.sessionNum} — ${s.date}</option>`
+  ).join('');
+  updateEditSessionInfo();
+  sel.removeEventListener('change', updateEditSessionInfo);
+  sel.addEventListener('change', updateEditSessionInfo);
+}
+
+function updateEditSessionInfo() {
+  const sel = document.getElementById('editSessionSelect');
+  const info = document.getElementById('editSessionInfo');
+  if(!sel || !info) return;
+  const s = sessionHistory[parseInt(sel.value)];
+  if(!s || !s.snapshot) {
+    info.textContent = 'Snapshot non disponible pour cette session.';
+    return;
+  }
+  const { jetons, valeur, participants } = s.snapshot;
+  info.innerHTML = `Cave: ${valeur}€ — ${jetons} jetons — ${participants.length} joueurs : `
+    + participants.map(p => `${p.name} (${p.caves} cave${p.caves>1?'s':''}, ${p.final} jetons)`).join(', ');
+}
+
+function loadSessionForEdit() {
+  const sel = document.getElementById('editSessionSelect');
+  if(!sel) return;
+  const idx = parseInt(sel.value);
+  const s = sessionHistory[idx];
+  if(!s || !s.snapshot) {
+    alert('Pas de snapshot disponible. Seules les sessions enregistrees apres la mise a jour peuvent etre modifiees.');
+    return;
+  }
+  const { jetons, valeur, participants } = s.snapshot;
+  window.editingSessionIdx = idx;
+  window.editingSessionNum = s.sessionNum;
+
+  // Go to paiements tab
+  showSection('paiements', document.querySelector('.pay-btn'));
+
+  setTimeout(() => {
+    document.getElementById('pc_jetons').value = jetons;
+    document.getElementById('pc_valeur').value = valeur;
+    updateCaveValue();
+    paySelected = new Set();
+    renderPayPlayers();
+    setTimeout(() => {
+      participants.forEach(p => {
+        const playerIdx = players.findIndex(pl => pl.name === p.name);
+        if(playerIdx === -1) return;
+        if(!paySelected.has(p.name)) togglePayPlayer(p.name, playerIdx);
+        const cavesEl = document.getElementById('pc_caves_' + playerIdx);
+        const finalEl = document.getElementById('pc_final_' + playerIdx);
+        if(cavesEl) cavesEl.value = p.caves;
+        if(finalEl) finalEl.value = p.final;
+      });
+      const banner = document.getElementById('editModeBanner');
+      if(banner) {
+        banner.style.display = 'flex';
+        banner.querySelector('span').textContent = 'Mode modification — Poker ' + s.sessionNum + ' (' + s.date + ')';
+      }
+      document.getElementById('payResults').style.display = 'none';
+    }, 150);
+  }, 150);
+}
+
 
 function refresh(save = true, history) {
   renderStats(); renderPills(); buildChart(); renderTable(); renderAvgCard();
