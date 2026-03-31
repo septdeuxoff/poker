@@ -103,25 +103,7 @@
     position: sticky; top: 0; background: var(--bg); z-index: 100;
   }
 
-  /* LOGO cartes */
-  .logo { display: flex; align-items: center; gap: 6px; text-decoration: none; flex-shrink: 0; }
-  .card {
-    width: 38px; height: 52px; border-radius: 5px; background: #fff;
-    display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start;
-    padding: 3px 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-    position: relative; flex-shrink: 0; overflow: hidden;
-  }
-  .card .rank { font-family: var(--display); font-size: 1rem; line-height: 1; letter-spacing: 0; }
-  .card .suit { font-size: 0.75rem; line-height: 1; }
-  .card .suit-center { position: absolute; bottom: 4px; right: 5px; font-size: 0.85rem; transform: rotate(180deg); }
-  .card.hearts .rank, .card.hearts .suit, .card.hearts .suit-center { color: #FA003F; }
-  .card.spades .rank, .card.spades .suit, .card.spades .suit-center { color: #0d0d0f; }
-  .card-two { margin-left: -14px; margin-top: 6px; }
-  @media(max-width:768px) {
-    .card .suit { font-size: 0.55rem; }
-    .card .suit-center { font-size: 0.65rem; bottom: 3px; right: 3px; }
-    .card .rank { font-size: 0.85rem; }
-  }
+  .logo { display: flex; align-items: center; text-decoration: none; flex-shrink: 0; }
 
   nav { display: flex; gap: 4px; flex-wrap: wrap; }
   nav button {
@@ -327,16 +309,7 @@
 
 <header>
   <a class="logo" href="#" onclick="showSection('dashboard',document.querySelector('nav button'));return false;">
-    <div class="card hearts">
-      <span class="rank">7</span>
-      <span class="suit">♥</span>
-      <span class="suit-center">♥</span>
-    </div>
-    <div class="card spades card-two">
-      <span class="rank">2</span>
-      <span class="suit">♠</span>
-      <span class="suit-center">♠</span>
-    </div>
+    <span style="font-family:var(--display);font-size:1.8rem;letter-spacing:2px;color:var(--text)">7<span style="color:#555">♠</span> 2<span style="color:#FA003F">♥</span></span>
   </a>
   <nav>
     <button class="active" onclick="showSection('dashboard',this)">Dashboard</button>
@@ -632,8 +605,8 @@ function renderStats() {
     {label:'Meilleur rendement',value:Math.round(roi(bestROI)*100)+'%',sub:bestROI.name+'  ·  mise '+bestROI.mise+'€  ·  bénéfice '+(totalGain(bestROI)>=0?'+':'')+totalGain(bestROI).toFixed(2)+'€',cls:'pos'},
     {label:'Plus gros gain en une soirée',value:'+'+biggestSingleWin.val.toFixed(2)+'€',sub:biggestSingleWin.name,cls:'pos'},
     {label:'Plus grosse perte en une soirée',value:biggestSingleLoss.val.toFixed(2)+'€',sub:biggestSingleLoss.name,cls:'neg'},
-    {label:'Meilleur taux de victoire',value:Math.round(winRate(highestWinRate)*100)+'%',sub:highestWinRate.name+' ('+played(highestWinRate)+' sessions)',cls:'pos'},
-    {label:'Joueur le plus régulier',value:(()=>{const avg=played(mostConsistent)>0?totalGain(mostConsistent)/played(mostConsistent):0;return (avg>=0?'+':'')+avg.toFixed(2)+'€/session';})(),sub:mostConsistent.name+' — taux victoire '+Math.round(winRate(mostConsistent)*100)+'%',cls:'pos',type:'orange'},
+    {label:'Meilleur taux de victoire',value:Math.round(winRate(highestWinRate)*100)+'%',sub:highestWinRate.name+' — '+highestWinRate.games.filter(g=>g>0).length+' sessions gagnées / '+played(highestWinRate)+' jouées',cls:'pos'},
+    {label:'Joueur le plus régulier',value:(()=>{const avg=played(mostConsistent)>0?totalGain(mostConsistent)/played(mostConsistent):0;return (avg>=0?'+':'')+avg.toFixed(2)+'€/session';})(),sub:mostConsistent.name+' — '+played(mostConsistent)+' sessions jouées',cls:'pos',type:'orange'},
     {label:'Sessions jouées',value:numSessions(),sub:players.length+' joueurs au total',cls:'',type:'neutral'},
   ];
 
