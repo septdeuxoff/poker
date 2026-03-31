@@ -363,6 +363,23 @@
       <button class="btn" onclick="exportJSON()" title="Réimport sans perte">Sauvegarde complète</button>
     </div>
     <div class="table-wrap" id="tableWrap"></div>
+
+    <!-- Session PNG generator -->
+    <div class="chart-wrapper" style="margin-top:2rem">
+      <div class="chart-header">
+        <span class="chart-title">EXPORTER UNE SESSION</span>
+        <span style="font-family:var(--mono);font-size:0.72rem;color:var(--muted)">Génère une image PNG des résultats</span>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
+        <div class="form-group" style="margin:0;flex:1;min-width:200px">
+          <label style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.08em">Session</label>
+          <select id="exportSessionSelect" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:0.85rem;padding:8px 12px;border-radius:4px;outline:none"></select>
+        </div>
+        <button class="btn" style="margin-top:1.2rem" onclick="generateSessionPNG()">Générer PNG</button>
+      </div>
+      <canvas id="sessionCanvas" style="display:none"></canvas>
+      <div id="pngPreview" style="margin-top:1rem"></div>
+    </div>
   </section>
 
   <!-- PAIEMENTS -->
@@ -387,6 +404,10 @@
       <div class="pay-config-card" style="display:flex;flex-direction:column;justify-content:center">
         <label>Valeur d'un jeton</label>
         <div style="font-family:var(--display);font-size:1.8rem;color:var(--accent2)" id="pc_jeton_val">0.005€</div>
+      </div>
+      <div class="pay-config-card">
+        <label>Date de la session</label>
+        <input type="date" id="pc_date" style="color-scheme:dark">
       </div>
     </div>
 
@@ -762,6 +783,7 @@ function renderTable() {
         <td style="color:var(--muted)">${s}</td>
       </tr>`;
     }).join('')}</tbody></table>`;
+  renderExportSelect();
 }
 
 // ── PAIEMENTS ─────────────────────────────────────────────────────────────────
@@ -955,9 +977,13 @@ async function saveSessionFromPaiements() {
     caves: p.caves,
     final: p.final
   }));
+  const sessionDateRaw = document.getElementById('pc_date').value;
+  const sessionDateDisplay = sessionDateRaw
+    ? new Date(sessionDateRaw + 'T12:00:00').toLocaleDateString('fr-FR')
+    : new Date().toLocaleDateString('fr-FR');
   sessionHistory.unshift({
     sessionNum,
-    date: new Date().toLocaleDateString('fr-FR'),
+    date: sessionDateDisplay,
     transfers: transfers.map(t => ({...t, paid: false})),
     snapshot: { jetons: jetonsSaved, valeur: valeurSaved, participants: participantsSaved }
   });
@@ -1303,6 +1329,175 @@ function addPlayerFromPay() {
   refresh(true);
 }
 
+
+// ── SESSION PNG GENERATOR ─────────────────────────────────────────────────────
+function renderExportSelect() {
+  const sel = document.getElementById('exportSessionSelect');
+  if(!sel) return;
+  if(!sessionHistory.length) {
+    sel.innerHTML = '<option>Aucune session disponible</option>';
+    return;
+  }
+  sel.innerHTML = sessionHistory.map((s,i) =>
+    `<option value="${i}">Poker ${s.sessionNum} — ${s.date}</option>`
+  ).join('');
+}
+
+function generateSessionPNG() {
+  const sel = document.getElementById('exportSessionSelect');
+  if(!sel || !sessionHistory.length) return;
+  const s = sessionHistory[parseInt(sel.value)];
+  if(!s) return;
+
+  const W = 800, PADDING = 40;
+  const ROW_H = 52, HEADER_H = 130, TRANSFER_H = 54;
+  const snap = s.snapshot;
+  const participants = snap ? snap.participants : [];
+  const jetons = snap ? snap.jetons : 1000;
+  const valeur = snap ? snap.valeur : 5;
+  const jval = valeur / jetons;
+
+  // Compute results
+  const results = participants.map(p => {
+    const gain = Math.round((p.final * jval - p.caves * valeur) * 100) / 100;
+    return { name: p.name, caves: p.caves, final: p.final, gain };
+  }).sort((a,b) => b.gain - a.gain);
+
+  const maxGain = results.length ? results[0].gain : 0;
+  const minGain = results.length ? results[results.length-1].gain : 0;
+
+  const H = HEADER_H + results.length * ROW_H + 30 + (s.transfers.length ? 50 + s.transfers.length * TRANSFER_H : 0) + 60;
+
+  const canvas = document.getElementById('sessionCanvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#0d0d0f';
+  ctx.fillRect(0, 0, W, H);
+
+  // Header band
+  ctx.fillStyle = '#141418';
+  ctx.fillRect(0, 0, W, HEADER_H);
+
+  // Logo text
+  ctx.font = 'bold 36px serif';
+  ctx.fillStyle = '#f0f0ec';
+  ctx.fillText('7', PADDING, 56);
+  ctx.fillStyle = '#444';
+  ctx.fillText('♠', PADDING + 28, 56);
+  ctx.fillStyle = '#f0f0ec';
+  ctx.fillText(' 2', PADDING + 54, 56);
+  ctx.fillStyle = '#FA003F';
+  ctx.fillText('♥', PADDING + 86, 56);
+
+  // Session title
+  ctx.font = 'bold 28px monospace';
+  ctx.fillStyle = '#f0f0ec';
+  ctx.fillText('POKER ' + s.sessionNum, PADDING, 95);
+  ctx.font = '15px monospace';
+  ctx.fillStyle = 'rgba(240,240,236,0.45)';
+  ctx.fillText(s.date, PADDING, 118);
+
+  // Cave info
+  if(snap) {
+    ctx.font = '13px monospace';
+    ctx.fillStyle = 'rgba(240,240,236,0.35)';
+    ctx.fillText(`Cave ${valeur}€ · ${jetons} jetons · valeur jeton ${jval.toFixed(4)}€`, W - PADDING - 320, 95);
+  }
+
+  // Separator
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(PADDING, HEADER_H - 1); ctx.lineTo(W - PADDING, HEADER_H - 1); ctx.stroke();
+
+  // Results rows
+  let y = HEADER_H + 10;
+  results.forEach((p, i) => {
+    const isWinner = p.gain === maxGain && p.gain > 0;
+    const isLoser = p.gain === minGain && p.gain < 0;
+    const rowBg = i % 2 === 0 ? '#141418' : '#0d0d0f';
+    ctx.fillStyle = rowBg;
+    ctx.fillRect(PADDING - 8, y, W - PADDING * 2 + 16, ROW_H - 4);
+
+    // Medal / thumb down
+    ctx.font = '22px serif';
+    ctx.fillText(isWinner ? '🥇' : isLoser ? '👎' : '  ', PADDING, y + 32);
+
+    // Name
+    ctx.font = '500 17px sans-serif';
+    ctx.fillStyle = '#f0f0ec';
+    ctx.fillText(p.name, PADDING + 40, y + 32);
+
+    // Caves
+    ctx.font = '13px monospace';
+    ctx.fillStyle = 'rgba(240,240,236,0.4)';
+    ctx.fillText(`${p.caves} cave${p.caves>1?'s':''}`, PADDING + 200, y + 32);
+
+    // Jetons
+    ctx.fillText(`${p.final} jetons`, PADDING + 300, y + 32);
+
+    // Gain
+    ctx.font = 'bold 18px monospace';
+    ctx.fillStyle = p.gain > 0 ? '#c9f542' : p.gain < 0 ? '#FA003F' : 'rgba(240,240,236,0.4)';
+    const gainStr = (p.gain >= 0 ? '+' : '') + p.gain.toFixed(2) + '€';
+    ctx.fillText(gainStr, W - PADDING - 120, y + 32);
+
+    y += ROW_H;
+  });
+
+  // Transfers section
+  if(s.transfers.length) {
+    y += 20;
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+    ctx.beginPath(); ctx.moveTo(PADDING, y); ctx.lineTo(W - PADDING, y); ctx.stroke();
+    y += 30;
+
+    ctx.font = 'bold 13px monospace';
+    ctx.fillStyle = 'rgba(240,240,236,0.45)';
+    ctx.fillText('VIREMENTS À EFFECTUER', PADDING, y);
+    y += 24;
+
+    s.transfers.forEach(t => {
+      ctx.fillStyle = '#141418';
+      ctx.fillRect(PADDING - 8, y, W - PADDING * 2 + 16, TRANSFER_H - 6);
+
+      ctx.font = '500 16px sans-serif';
+      ctx.fillStyle = '#f0f0ec';
+      ctx.fillText(t.from, PADDING, y + 28);
+
+      ctx.font = '14px monospace';
+      ctx.fillStyle = '#f5a742';
+      ctx.fillText('──▶', PADDING + 160, y + 28);
+
+      ctx.font = '500 16px sans-serif';
+      ctx.fillStyle = '#f0f0ec';
+      ctx.fillText(t.to, PADDING + 220, y + 28);
+
+      ctx.font = 'bold 20px monospace';
+      ctx.fillStyle = '#f5a742';
+      ctx.fillText(t.amount.toFixed(2) + '€', W - PADDING - 100, y + 28);
+
+      y += TRANSFER_H;
+    });
+  }
+
+  // Footer
+  y += 20;
+  ctx.font = '12px monospace';
+  ctx.fillStyle = 'rgba(240,240,236,0.2)';
+  ctx.fillText('7♠ 2♥ — Poker Night Dashboard', PADDING, y + 20);
+
+  // Export as PNG
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const preview = document.getElementById('pngPreview');
+    preview.innerHTML = `
+      <img src="${url}" style="max-width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.07);display:block;margin-bottom:0.75rem">
+      <a href="${url}" download="poker_session_${s.sessionNum}.png" class="btn ghost" style="display:inline-block">Télécharger le PNG</a>`;
+  });
+}
+
 // ── EDIT SESSION ─────────────────────────────────────────────────────────────
 function renderEditSessionSelect() {
   const sel = document.getElementById('editSessionSelect');
@@ -1386,6 +1581,12 @@ function refresh(save = true, history) {
 }
 
 renderStats(); renderPills(); buildChart(); // Firebase will load data and call refresh()
+document.addEventListener('DOMContentLoaded', () => {
+  const d = new Date();
+  const dateStr = d.toISOString().split('T')[0];
+  const el = document.getElementById('pc_date');
+  if(el) el.value = dateStr;
+});
 </script>
 </body>
 </html>
