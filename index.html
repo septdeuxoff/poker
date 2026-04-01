@@ -115,7 +115,7 @@
     }
   };
 
-  document.addEventListener("DOMContentLoaded", () => window.fbLoad());
+  document.addEventListener("DOMContentLoaded", () => { setTimeout(() => window.fbLoad(), 0); });
 </script>
 <style>
   :root {
@@ -1747,7 +1747,7 @@ function renderGallery() {
       <p style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.5rem">Photo de la soirée</p>
       <img src="${photo}" style="max-width:100%;border-radius:8px;border:1px solid var(--border);object-fit:cover">`;
   } else {
-    html += '<p style="font-family:var(--mono);font-size:0.78rem;color:var(--muted);margin-top:0.5rem">Aucune photo — uploadez-en une depuis l'onglet Paiements.</p>';
+    html += '<p style="font-family:var(--mono);font-size:0.78rem;color:var(--muted);margin-top:0.5rem">Aucune photo — uploadez-en une depuis l&#39;onglet Paiements.</p>';
   }
 
   container.innerHTML = html;
