@@ -22,35 +22,12 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const dataRef = doc(db, "poker", "data");
-  const photoRef = (sessionNum) => doc(db, "poker", "photo_" + sessionNum);
 
   let isSaving = false;
   let saveTimeout = null;
   let localVersion = 0; // increments on every local change
 
   // Save to Firebase — debounced to avoid rapid successive writes
-  window.fbSavePhotos = async function(photos, changedSessionNum) {
-    try {
-      sessionPhotos = photos;
-      // Save only the changed photo in its own document
-      if(changedSessionNum) {
-        const photo = photos[changedSessionNum];
-        await setDoc(photoRef(changedSessionNum), { data: photo || null });
-      }
-    } catch(e) { console.error("Firebase photo save error", e); }
-  };
-
-  window.fbLoadPhoto = async function(sessionNum) {
-    try {
-      const snap = await getDoc(photoRef(sessionNum));
-      if(snap.exists() && snap.data().data) {
-        sessionPhotos[sessionNum] = snap.data().data;
-        renderPhotoPreview();
-        renderGallery();
-      }
-    } catch(e) { console.error("Firebase photo load error", e); }
-  };
-
   window.fbSave = async function(playersData, history) {
     if(history !== undefined) sessionHistory = history;
     localVersion++;
@@ -82,8 +59,7 @@
           renderDeleteSessionSelect();
           renderEditSessionSelect();
           renderExportSelect();
-          renderPhotoSessionSelect();
-          showToast("Données mises à jour en temps réel");
+            showToast("Données mises à jour en temps réel");
         }
       } catch(e) { console.error("Firebase parse error", e); }
     }
@@ -103,7 +79,6 @@
         renderDeleteSessionSelect();
         renderEditSessionSelect();
         renderExportSelect();
-        renderPhotoSessionSelect();
         document.getElementById('loadingOverlay').style.display = 'none';
       } else {
         await window.fbSave(players);
@@ -395,21 +370,6 @@
     </div>
     <div class="table-wrap" id="tableWrap"></div>
 
-    <!-- GALERIE DES SESSIONS -->
-    <div class="chart-wrapper" style="margin-top:2rem">
-      <div class="chart-header">
-        <span class="chart-title">GALERIE DES SESSIONS</span>
-        <span style="font-family:var(--mono);font-size:0.72rem;color:var(--muted)">Résultats + photos</span>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:1.25rem">
-        <div class="form-group" style="margin:0;flex:1;min-width:200px">
-          <label style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.08em">Session</label>
-          <select id="gallerySessionSelect" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:0.85rem;padding:8px 12px;border-radius:4px;outline:none" onchange="renderGallery()"></select>
-        </div>
-      </div>
-      <div id="galleryContent"></div>
-    </div>
-
   </section>
 
   <!-- PAIEMENTS -->
@@ -515,25 +475,6 @@
       </div>
       <canvas id="sessionCanvas" style="display:none"></canvas>
       <div id="pngPreview" style="margin-top:1rem"></div>
-    </div>
-
-    <!-- PHOTO DE SESSION -->
-    <div class="chart-wrapper" style="margin-top:1.5rem">
-      <div class="chart-header">
-        <span class="chart-title">PHOTO DE SESSION</span>
-        <span style="font-family:var(--mono);font-size:0.72rem;color:var(--muted)">Une photo par session, visible par tous</span>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
-        <div class="form-group" style="margin:0;flex:1;min-width:200px">
-          <label style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.08em">Session</label>
-          <select id="photoSessionSelect" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:0.85rem;padding:8px 12px;border-radius:4px;outline:none" onchange="renderPhotoPreview()"></select>
-        </div>
-        <div>
-          <label style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.08em">Uploader une photo</label>
-          <input type="file" id="photoInput" accept="image/*" onchange="handlePhotoUpload(this)" style="font-family:var(--mono);font-size:0.78rem;color:var(--muted)">
-        </div>
-      </div>
-      <div id="photoPreview" style="margin-top:0.5rem"></div>
     </div>
 
     </div><!-- end payPanel -->
@@ -851,7 +792,6 @@ function renderTable() {
       </tr>`;
     }).join('')}</tbody></table>`;
   renderExportSelect();
-  renderPhotoSessionSelect();
 }
 
 // ── PAIEMENTS ─────────────────────────────────────────────────────────────────
@@ -1068,7 +1008,6 @@ async function saveSessionFromPaiements() {
   renderDeleteSessionSelect();
   renderEditSessionSelect();
   renderExportSelect();
-  renderPhotoSessionSelect();
 }
 
 function extractCurrentTransfers() {
@@ -1650,187 +1589,6 @@ function loadSessionForEdit() {
   }, 150);
 }
 
-
-// ── PHOTOS ────────────────────────────────────────────────────────────────────
-let sessionPhotos = {}; // { sessionNum: base64string }
-
-function renderPhotoSessionSelect() {
-  ['photoSessionSelect','gallerySessionSelect'].forEach(id => {
-    const sel = document.getElementById(id);
-    if(!sel) return;
-    if(!sessionHistory.length) {
-      sel.innerHTML = '<option>Aucune session</option>';
-      return;
-    }
-    sel.innerHTML = sessionHistory.map(s =>
-      `<option value="${s.sessionNum}">Poker ${s.sessionNum} — ${s.date}</option>`
-    ).join('');
-  });
-  renderPhotoPreview();
-  renderGallery();
-}
-
-function renderPhotoPreview() {
-  const sel = document.getElementById('photoSessionSelect');
-  const preview = document.getElementById('photoPreview');
-  if(!sel || !preview) return;
-  const num = parseInt(sel.value);
-  // Lazy load from Firebase if not yet loaded
-  if(sessionPhotos[num] === undefined && window.fbLoadPhoto) {
-    sessionPhotos[num] = null; // mark as loading
-    window.fbLoadPhoto(num);
-  }
-  const photo = sessionPhotos[num];
-  if(photo) {
-    preview.innerHTML = `
-      <p style="font-family:var(--mono);font-size:0.72rem;color:var(--muted);margin-bottom:0.5rem">Photo actuelle :</p>
-      <img src="${photo}" style="max-width:100%;max-height:300px;border-radius:8px;border:1px solid var(--border);object-fit:cover">`;
-  } else {
-    preview.innerHTML = '<p style="font-family:var(--mono);font-size:0.78rem;color:var(--muted)">Aucune photo pour cette session.</p>';
-  }
-}
-
-function handlePhotoUpload(input) {
-  const file = input.files[0];
-  if(!file) return;
-  const sel = document.getElementById('photoSessionSelect');
-  const sessionNum = parseInt(sel.value);
-  const reader = new FileReader();
-  reader.onload = e => {
-    // Compress via canvas
-    const img = new Image();
-    img.onload = () => {
-      const MAX = 800;
-      let w = img.width, h = img.height;
-      if(w > MAX || h > MAX) {
-        if(w > h) { h = Math.round(h * MAX / w); w = MAX; }
-        else { w = Math.round(w * MAX / h); h = MAX; }
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      const compressed = canvas.toDataURL('image/jpeg', 0.70);
-      sessionPhotos[sessionNum] = compressed;
-      renderPhotoPreview();
-      renderGallery();
-      // Save only this photo to its own Firestore document
-      if(window.fbSavePhotos) window.fbSavePhotos(sessionPhotos, sessionNum);
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-  input.value = '';
-}
-
-function renderGallery() {
-  const sel = document.getElementById('gallerySessionSelect');
-  const container = document.getElementById('galleryContent');
-  if(!sel || !container) return;
-  const num = parseInt(sel.value);
-  const s = sessionHistory.find(s => s.sessionNum === num);
-  const photo = sessionPhotos[num];
-
-  let html = '';
-
-  // PNG results preview
-  if(s && s.snapshot) {
-    // Trigger PNG generation into gallery canvas
-    renderGalleryPNG(s, num);
-    html += `<div id="galleryPNG_${num}" style="margin-bottom:1rem"></div>`;
-  } else {
-    html += '<p style="font-family:var(--mono);font-size:0.78rem;color:var(--muted);margin-bottom:1rem">Pas de données disponibles pour cette session.</p>';
-  }
-
-  // Photo
-  if(photo) {
-    html += `
-      <p style="font-family:var(--mono);font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.5rem">Photo de la soirée</p>
-      <img src="${photo}" style="max-width:100%;border-radius:8px;border:1px solid var(--border);object-fit:cover">`;
-  } else {
-    html += '<p style="font-family:var(--mono);font-size:0.78rem;color:var(--muted);margin-top:0.5rem">Aucune photo — uploadez-en une depuis l&#39;onglet Paiements.</p>';
-  }
-
-  container.innerHTML = html;
-
-  if(s && s.snapshot) renderGalleryPNG(s, num);
-}
-
-function renderGalleryPNG(s, num) {
-  // Reuse generateSessionPNG logic but render into gallery div
-  const W = 700, PADDING = 36;
-  const ROW_H = 48, HEADER_H = 110, TRANSFER_H = 50;
-  const snap = s.snapshot;
-  const participants = snap.participants;
-  const jetons = snap.jetons, valeur = snap.valeur, jval = valeur/jetons;
-
-  const results = participants.map(p => ({
-    name: p.name, caves: p.caves, final: p.final,
-    gain: Math.round((p.final*jval - p.caves*valeur)*100)/100
-  })).sort((a,b) => b.gain - a.gain);
-
-  const maxGain = results.length ? results[0].gain : 0;
-  const minGain = results.length ? results[results.length-1].gain : 0;
-  const H = HEADER_H + results.length*ROW_H + 30 + (s.transfers.length ? 44 + s.transfers.length*TRANSFER_H : 0) + 50;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext('2d');
-
-  ctx.fillStyle = '#0d0d0f'; ctx.fillRect(0,0,W,H);
-  ctx.fillStyle = '#141418'; ctx.fillRect(0,0,W,HEADER_H);
-
-  ctx.font = 'bold 30px serif'; ctx.fillStyle = '#f0f0ec';
-  ctx.fillText('7', PADDING, 48);
-  ctx.fillStyle = '#444'; ctx.fillText('♠', PADDING+24, 48);
-  ctx.fillStyle = '#f0f0ec'; ctx.fillText(' 2', PADDING+46, 48);
-  ctx.fillStyle = '#FA003F'; ctx.fillText('♥', PADDING+74, 48);
-
-  ctx.font = 'bold 24px monospace'; ctx.fillStyle = '#f0f0ec';
-  ctx.fillText('POKER '+s.sessionNum, PADDING, 82);
-  ctx.font = '13px monospace'; ctx.fillStyle = 'rgba(240,240,236,0.45)';
-  ctx.fillText(s.date, PADDING, 100);
-
-  ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(PADDING,HEADER_H-1); ctx.lineTo(W-PADDING,HEADER_H-1); ctx.stroke();
-
-  let y = HEADER_H+8;
-  results.forEach((p,i) => {
-    ctx.fillStyle = i%2===0?'#141418':'#0d0d0f';
-    ctx.fillRect(PADDING-6,y,W-PADDING*2+12,ROW_H-3);
-    ctx.font='18px serif'; ctx.fillText(p.gain===maxGain&&p.gain>0?'🥇':p.gain===minGain&&p.gain<0?'👎':'  ',PADDING,y+28);
-    ctx.font='500 15px sans-serif'; ctx.fillStyle='#f0f0ec'; ctx.fillText(p.name,PADDING+36,y+28);
-    ctx.font='12px monospace'; ctx.fillStyle='rgba(240,240,236,0.4)';
-    ctx.fillText(p.caves+' cave'+(p.caves>1?'s':''),PADDING+180,y+28);
-    ctx.fillText(p.final+' jetons',PADDING+270,y+28);
-    ctx.font='bold 16px monospace';
-    ctx.fillStyle=p.gain>0?'#c9f542':p.gain<0?'#FA003F':'rgba(240,240,236,0.4)';
-    ctx.fillText((p.gain>=0?'+':'')+p.gain.toFixed(2)+'€',W-PADDING-100,y+28);
-    y+=ROW_H;
-  });
-
-  if(s.transfers.length) {
-    y+=16;
-    ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.beginPath(); ctx.moveTo(PADDING,y); ctx.lineTo(W-PADDING,y); ctx.stroke();
-    y+=28;
-    ctx.font='bold 11px monospace'; ctx.fillStyle='rgba(240,240,236,0.45)';
-    ctx.fillText('VIREMENTS À EFFECTUER',PADDING,y); y+=20;
-    s.transfers.forEach(t => {
-      ctx.fillStyle='#141418'; ctx.fillRect(PADDING-6,y,W-PADDING*2+12,TRANSFER_H-6);
-      ctx.font='500 14px sans-serif'; ctx.fillStyle='#f0f0ec'; ctx.fillText(t.from,PADDING,y+24);
-      ctx.font='12px monospace'; ctx.fillStyle='#f5a742'; ctx.fillText('──▶',PADDING+140,y+24);
-      ctx.font='500 14px sans-serif'; ctx.fillStyle='#f0f0ec'; ctx.fillText(t.to,PADDING+195,y+24);
-      ctx.font='bold 17px monospace'; ctx.fillStyle='#f5a742'; ctx.fillText(t.amount.toFixed(2)+'€',W-PADDING-90,y+24);
-      y+=TRANSFER_H;
-    });
-  }
-
-  ctx.font='11px monospace'; ctx.fillStyle='rgba(240,240,236,0.2)';
-  ctx.fillText('7♠ 2♥ — Poker Night Dashboard',PADDING,y+24);
-
-  const dataUrl = canvas.toDataURL('image/png');
-  const div = document.getElementById('galleryPNG_'+num);
-  if(div) div.innerHTML = `<img src="${dataUrl}" style="max-width:100%;border-radius:8px;border:1px solid rgba(255,255,255,0.07);margin-bottom:0.75rem">`;
-}
 
 
 function refresh(save = true, history) {
