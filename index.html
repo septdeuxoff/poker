@@ -942,6 +942,9 @@ async function saveSessionFromPaiements() {
     cancelEdit();
     refresh(true, sessionHistory);
     renderPaymentHistory();
+    renderDeleteSessionSelect();
+    renderEditSessionSelect();
+    renderExportSelect();
     return;
   }
 
@@ -1001,6 +1004,9 @@ async function saveSessionFromPaiements() {
   lastPayResults=null;
   refresh(true, sessionHistory);
   renderPaymentHistory();
+  renderDeleteSessionSelect();
+  renderEditSessionSelect();
+  renderExportSelect();
 }
 
 function extractCurrentTransfers() {
