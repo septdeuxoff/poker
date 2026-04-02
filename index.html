@@ -1011,19 +1011,21 @@ async function saveSessionFromPaiements() {
 }
 
 function extractCurrentTransfers() {
-  const items = document.querySelectorAll('#transfersList .transfer-item');
-  const result = [];
-  items.forEach(item => {
-    const spans = item.querySelectorAll('div');
-    if(spans.length >= 4) {
-      result.push({
-        from: spans[0].textContent.trim(),
-        to: spans[2].textContent.trim(),
-        amount: parseFloat(spans[3].textContent.replace('€','').trim())
-      });
-    }
-  });
-  return result;
+  // Recalculate transfers directly from lastPayResults balances
+  // This ensures transfers always match the recorded gains exactly
+  if(!lastPayResults || !lastPayResults.length) return [];
+  const d = lastPayResults.filter(p=>p.balance<0).map(p=>({name:p.name,bal:p.balance})).sort((a,b)=>a.bal-b.bal);
+  const c = lastPayResults.filter(p=>p.balance>0).map(p=>({name:p.name,bal:p.balance})).sort((a,b)=>b.bal-a.bal);
+  const transfers = []; let di=0, ci=0;
+  const dd = d.map(x=>({...x})), cc = c.map(x=>({...x}));
+  while(di<dd.length && ci<cc.length) {
+    const amt = Math.round(Math.min(Math.abs(dd[di].bal), cc[ci].bal)*100)/100;
+    if(amt > 0.005) transfers.push({from:dd[di].name, to:cc[ci].name, amount:amt});
+    dd[di].bal += amt; cc[ci].bal -= amt;
+    if(Math.abs(dd[di].bal)<0.01) di++;
+    if(Math.abs(cc[ci].bal)<0.01) ci++;
+  }
+  return transfers;
 }
 
 // ── PAY LOCK ──────────────────────────────────────────────────────────────────
@@ -1283,21 +1285,7 @@ function togglePayment(sessionIdx, transferIdx, paid) {
   renderPaymentHistory();
 }
 
-function extractCurrentTransfers() {
-  const items = document.querySelectorAll('#transfersList .transfer-item');
-  const result = [];
-  items.forEach(item => {
-    const divs = item.querySelectorAll('div');
-    if(divs.length >= 4) {
-      result.push({
-        from: divs[0].textContent.trim(),
-        to: divs[2].textContent.trim(),
-        amount: parseFloat(divs[3].textContent.replace('€','').trim()) || 0
-      });
-    }
-  });
-  return result;
-}
+
 
 // ── ADD PLAYER FROM PAY ──────────────────────────────────────────────────────
 function toggleAddPlayerInline() {
