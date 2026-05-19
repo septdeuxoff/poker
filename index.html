@@ -824,29 +824,46 @@ function togglePayPlayer(name,idx) {
 }
 
 function calculerPaiements() {
-  const jetons=parseFloat(document.getElementById('pc_jetons').value)||100;
+  const jetons=parseFloat(document.getElementById('pc_jetons').value)||1000;
   const valeur=parseFloat(document.getElementById('pc_valeur').value)||5;
-  const jeton_val=valeur/jetons;
 
-  const participants=players.map((p,i)=>{
+  // Collect raw data first
+  const raw=players.map((p,i)=>{
     if(!paySelected.has(p.name)) return null;
     const caves=parseFloat(document.getElementById('pc_caves_'+i).value)||1;
     const final=parseFloat(document.getElementById('pc_final_'+i).value)||0;
     const misePaye=caves*valeur;
-    const gainJetons=final*jeton_val;
-    const balance=Math.round((gainJetons-misePaye)*100)/100;
-    return {name:p.name, caves, final, misePaye, gainJetons, balance};
+    return {name:p.name, caves, final, misePaye};
   }).filter(Boolean);
+
+  if(raw.length<2){alert('Sélectionne au moins 2 joueurs.');return;}
+
+  // Règle de trois : répartition proportionnelle basée sur les jetons réels comptés
+  // Total misé par tous les joueurs (= la somme qui circule)
+  const totalMise = raw.reduce((s,p)=>s+p.misePaye, 0);
+  // Total des jetons finaux effectivement comptés (peut différer du total distribué)
+  const totalJetonsFinal = raw.reduce((s,p)=>s+p.final, 0);
+
+  const participants = raw.map(p => {
+    // Part proportionnelle = ses jetons / total jetons comptés × total misé
+    const gainProportionnel = totalJetonsFinal > 0
+      ? (p.final / totalJetonsFinal) * totalMise
+      : 0;
+    const balance = Math.round((gainProportionnel - p.misePaye) * 100) / 100;
+    const gainJetons = gainProportionnel; // pour affichage
+    return {...p, gainJetons, balance};
+  });
 
   if(participants.length<2){alert('Sélectionne au moins 2 joueurs.');return;}
 
   lastPayResults=participants;
 
+  const totalJetonsFinalDisp = participants.reduce((s,p)=>s+p.final,0);
   document.getElementById('paySummary').innerHTML=participants.map(p=>`
     <div class="pay-sum-card">
       <div class="pay-sum-name">${p.name}</div>
       <div class="pay-sum-detail">${p.caves} cave(s) × ${valeur}€ = ${p.misePaye.toFixed(2)}€ misé</div>
-      <div class="pay-sum-detail">${p.final} jetons × ${jeton_val.toFixed(4)}€ = ${p.gainJetons.toFixed(2)}€ récupéré</div>
+      <div class="pay-sum-detail">${p.final} jetons / ${totalJetonsFinalDisp} total = ${((p.final/totalJetonsFinalDisp)*100).toFixed(1)}% → ${p.gainJetons.toFixed(2)}€ récupéré</div>
       <div style="font-family:var(--display);font-size:1.4rem;margin-top:4px;color:${p.balance>=0?'var(--accent)':'var(--red)'}">
         ${p.balance>=0?'+':''}${p.balance.toFixed(2)}€
       </div>
