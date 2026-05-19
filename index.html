@@ -1394,16 +1394,45 @@ function generateSessionPNG() {
   const valeur = snap ? snap.valeur : 5;
   const jval = valeur / jetons;
 
-  // Compute results
-  const results = participants.map(p => {
-    const gain = Math.round((p.final * jval - p.caves * valeur) * 100) / 100;
+  // Compute results using proportional formula (same as calculerPaiements)
+  const totalJetonsFinalPNG = participants.reduce((s,p) => s + p.final, 0);
+  const totalCavesPNG = participants.reduce((s,p) => s + p.caves, 0);
+  const totalJetonsTheorique = totalCavesPNG * jetons;
+  const valeurJeton = valeur / jetons;
+  const totalMisePNG = totalCavesPNG * valeur;
+
+  const resultsRaw = participants.map(p => {
+    const proportion = totalJetonsFinalPNG > 0 ? p.final / totalJetonsFinalPNG : 0;
+    const jetonsReviennent = proportion * totalJetonsTheorique;
+    const gain = Math.round((jetonsReviennent * valeurJeton - p.caves * valeur) * 100) / 100;
     return { name: p.name, caves: p.caves, final: p.final, gain };
-  }).sort((a,b) => b.gain - a.gain);
+  });
+
+  // Correction arrondi
+  const sumGains = resultsRaw.reduce((s,p) => s + p.gain, 0);
+  const err = Math.round(sumGains * 100) / 100;
+  if(Math.abs(err) >= 0.01) {
+    const idx = resultsRaw.reduce((best,p,i) => Math.abs(p.gain) > Math.abs(resultsRaw[best].gain) ? i : best, 0);
+    resultsRaw[idx].gain = Math.round((resultsRaw[idx].gain - err) * 100) / 100;
+  }
+  const results = resultsRaw.sort((a,b) => b.gain - a.gain);
 
   const maxGain = results.length ? results[0].gain : 0;
   const minGain = results.length ? results[results.length-1].gain : 0;
 
-  const H = HEADER_H + results.length * ROW_H + 30 + (s.transfers.length ? 50 + s.transfers.length * TRANSFER_H : 0) + 60;
+  // Recalculate transfers from proportional results
+  const debtors = results.filter(p=>p.gain<0).map(p=>({name:p.name,bal:p.gain})).sort((a,b)=>a.bal-b.bal);
+  const creditors = results.filter(p=>p.gain>0).map(p=>({name:p.name,bal:p.gain})).sort((a,b)=>b.bal-a.bal);
+  const recalcTransfers = []; let di=0,ci=0;
+  const dd=debtors.map(x=>({...x})), cc=creditors.map(x=>({...x}));
+  while(di<dd.length&&ci<cc.length){
+    const amt=Math.round(Math.min(Math.abs(dd[di].bal),cc[ci].bal)*100)/100;
+    if(amt>0.005) recalcTransfers.push({from:dd[di].name,to:cc[ci].name,amount:amt});
+    dd[di].bal+=amt; cc[ci].bal-=amt;
+    if(Math.abs(dd[di].bal)<0.01)di++; if(Math.abs(cc[ci].bal)<0.01)ci++;
+  }
+
+  const H = HEADER_H + results.length * ROW_H + 30 + (recalcTransfers.length ? 50 + recalcTransfers.length * TRANSFER_H : 0) + 60;
 
   const canvas = document.getElementById('sessionCanvas');
   canvas.width = W; canvas.height = H;
@@ -1484,7 +1513,7 @@ function generateSessionPNG() {
   });
 
   // Transfers section
-  if(s.transfers.length) {
+  if(recalcTransfers.length) {
     y += 20;
     ctx.strokeStyle = 'rgba(255,255,255,0.07)';
     ctx.beginPath(); ctx.moveTo(PADDING, y); ctx.lineTo(W - PADDING, y); ctx.stroke();
@@ -1495,7 +1524,7 @@ function generateSessionPNG() {
     ctx.fillText('VIREMENTS À EFFECTUER', PADDING, y);
     y += 24;
 
-    s.transfers.forEach(t => {
+    recalcTransfers.forEach(t => {
       ctx.fillStyle = '#141418';
       ctx.fillRect(PADDING - 8, y, W - PADDING * 2 + 16, TRANSFER_H - 6);
 
