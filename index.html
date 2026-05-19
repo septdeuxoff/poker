@@ -844,15 +844,30 @@ function calculerPaiements() {
   // Total des jetons finaux effectivement comptés (peut différer du total distribué)
   const totalJetonsFinal = raw.reduce((s,p)=>s+p.final, 0);
 
-  const participants = raw.map(p => {
-    // Part proportionnelle = ses jetons / total jetons comptés × total misé
-    const gainProportionnel = totalJetonsFinal > 0
-      ? (p.final / totalJetonsFinal) * totalMise
-      : 0;
+  // Total jetons théoriques = caves totales × jetons par cave
+  const totalJetonsTheorique = raw.reduce((s,p) => s + p.caves, 0) * jetons;
+  const valeurJeton = valeur / jetons;
+
+  // 1. Proportion de chaque joueur = ses jetons finaux / total jetons finaux
+  // 2. Jetons théoriques qui lui reviennent = proportion × total jetons théoriques
+  // 3. Gain = (jetons théoriques revenant − caves × jetons/cave) × valeur jeton
+  const participantsRaw = raw.map(p => {
+    const proportion = totalJetonsFinal > 0 ? p.final / totalJetonsFinal : 0;
+    const jetonsReviennent = proportion * totalJetonsTheorique;
+    const gainProportionnel = jetonsReviennent * valeurJeton;
     const balance = Math.round((gainProportionnel - p.misePaye) * 100) / 100;
-    const gainJetons = gainProportionnel; // pour affichage
-    return {...p, gainJetons, balance};
+    return {...p, gainJetons: gainProportionnel, jetonsReviennent, proportion, balance};
   });
+
+  // Correction d'arrondi : ajuster le joueur avec le plus grand gain absolu
+  const sumBalances = participantsRaw.reduce((s,p) => s + p.balance, 0);
+  const roundingError = Math.round(sumBalances * 100) / 100;
+  if(Math.abs(roundingError) >= 0.01) {
+    const idx = participantsRaw.reduce((best, p, i) =>
+      Math.abs(p.balance) > Math.abs(participantsRaw[best].balance) ? i : best, 0);
+    participantsRaw[idx].balance = Math.round((participantsRaw[idx].balance - roundingError) * 100) / 100;
+  }
+  const participants = participantsRaw;
 
   if(participants.length<2){alert('Sélectionne au moins 2 joueurs.');return;}
 
@@ -863,7 +878,7 @@ function calculerPaiements() {
     <div class="pay-sum-card">
       <div class="pay-sum-name">${p.name}</div>
       <div class="pay-sum-detail">${p.caves} cave(s) × ${valeur}€ = ${p.misePaye.toFixed(2)}€ misé</div>
-      <div class="pay-sum-detail">${p.final} jetons / ${totalJetonsFinalDisp} total = ${((p.final/totalJetonsFinalDisp)*100).toFixed(1)}% → ${p.gainJetons.toFixed(2)}€ récupéré</div>
+      <div class="pay-sum-detail">${p.caves} cave(s) · ${p.final} jetons · ${(p.proportion*100).toFixed(1)}% du pot</div>
       <div style="font-family:var(--display);font-size:1.4rem;margin-top:4px;color:${p.balance>=0?'var(--accent)':'var(--red)'}">
         ${p.balance>=0?'+':''}${p.balance.toFixed(2)}€
       </div>
