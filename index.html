@@ -1722,12 +1722,11 @@ function renderSessionView() {
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
         ${results.map(p => `
-          <div style="display:grid;grid-template-columns:30px 1fr 100px 100px 90px;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px">
-            <span style="font-size:1.1rem">${p.gain===maxGain&&p.gain>0?'🥇':p.gain===minGain&&p.gain<0?'👎':''}</span>
-            <span style="font-weight:500">${p.name}</span>
-            <span style="font-family:var(--mono);font-size:0.78rem;color:var(--muted)">${p.caves} cave${p.caves>1?'s':''}</span>
-            <span style="font-family:var(--mono);font-size:0.78rem;color:var(--muted)">${p.final} jetons</span>
-            <span style="font-family:var(--display);font-size:1.2rem;text-align:right;color:${p.gain>0?'var(--accent)':p.gain<0?'var(--red)':'var(--muted)'}">${p.gain>=0?'+':''}${p.gain.toFixed(2)}€</span>
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;flex-wrap:nowrap;min-width:0">
+            <span style="font-size:1rem;flex-shrink:0;width:20px">${p.gain===maxGain&&p.gain>0?'🥇':p.gain===minGain&&p.gain<0?'👎':''}</span>
+            <span style="font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span>
+            <span style="font-family:var(--mono);font-size:0.72rem;color:var(--muted);flex-shrink:0;white-space:nowrap">${p.caves}c · ${p.final}j</span>
+            <span style="font-family:var(--display);font-size:1.1rem;flex-shrink:0;color:${p.gain>0?'var(--accent)':p.gain<0?'var(--red)':'var(--muted)'};white-space:nowrap">${p.gain>=0?'+':''}${p.gain.toFixed(2)}€</span>
           </div>`).join('')}
       </div>
     </div>
