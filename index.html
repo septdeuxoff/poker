@@ -844,28 +844,43 @@ function calculerPaiements() {
   // Total des jetons finaux effectivement comptés (peut différer du total distribué)
   const totalJetonsFinal = raw.reduce((s,p)=>s+p.final, 0);
 
-  // Total jetons théoriques = caves totales × jetons par cave
-  const totalJetonsTheorique = raw.reduce((s,p) => s + p.caves, 0) * jetons;
-  const valeurJeton = valeur / jetons;
+  // Règle :
+  // - Joueurs à 0 jetons : perte exacte = caves × valeur (pas de proportion)
+  // - Autres joueurs : proportion de leurs jetons / total jetons finaux non-zéro
+  //   appliquée sur le pot total disponible (mises de tous, gagnants + perdants)
 
-  // 1. Proportion de chaque joueur = ses jetons finaux / total jetons finaux
-  // 2. Jetons théoriques qui lui reviennent = proportion × total jetons théoriques
-  // 3. Gain = (jetons théoriques revenant − caves × jetons/cave) × valeur jeton
+  const losers = raw.filter(p => p.final === 0);
+  const winners = raw.filter(p => p.final > 0);
+
+  const potLosers = losers.reduce((s,p) => s + p.misePaye, 0);
+  const totalJetonsFinalWinners = winners.reduce((s,p) => s + p.final, 0);
+  const potAvailable = totalMise; // pot total = mises de tous
+
   const participantsRaw = raw.map(p => {
-    const proportion = totalJetonsFinal > 0 ? p.final / totalJetonsFinal : 0;
-    const jetonsReviennent = proportion * totalJetonsTheorique;
-    const gainProportionnel = jetonsReviennent * valeurJeton;
-    const balance = Math.round((gainProportionnel - p.misePaye) * 100) / 100;
-    return {...p, gainJetons: gainProportionnel, jetonsReviennent, proportion, balance};
+    let balance, proportion = 0, gainJetons = 0;
+    if(p.final === 0) {
+      // Perte exacte
+      balance = -p.misePaye;
+    } else {
+      // Part proportionnelle du pot total
+      proportion = totalJetonsFinalWinners > 0 ? p.final / totalJetonsFinalWinners : 0;
+      gainJetons = proportion * potAvailable;
+      balance = Math.round((gainJetons - p.misePaye) * 100) / 100;
+    }
+    return {...p, gainJetons, proportion, balance};
   });
 
-  // Correction d'arrondi : ajuster le joueur avec le plus grand gain absolu
+  // Correction arrondi sur le joueur avec le plus grand gain absolu (non-zéro)
   const sumBalances = participantsRaw.reduce((s,p) => s + p.balance, 0);
   const roundingError = Math.round(sumBalances * 100) / 100;
   if(Math.abs(roundingError) >= 0.01) {
-    const idx = participantsRaw.reduce((best, p, i) =>
-      Math.abs(p.balance) > Math.abs(participantsRaw[best].balance) ? i : best, 0);
-    participantsRaw[idx].balance = Math.round((participantsRaw[idx].balance - roundingError) * 100) / 100;
+    const winnersOnly = participantsRaw.filter(p => p.final > 0);
+    if(winnersOnly.length) {
+      const idx = participantsRaw.indexOf(
+        winnersOnly.reduce((best,p) => Math.abs(p.balance) > Math.abs(best.balance) ? p : best)
+      );
+      participantsRaw[idx].balance = Math.round((participantsRaw[idx].balance - roundingError) * 100) / 100;
+    }
   }
   const participants = participantsRaw;
 
@@ -1394,26 +1409,30 @@ function generateSessionPNG() {
   const valeur = snap ? snap.valeur : 5;
   const jval = valeur / jetons;
 
-  // Compute results using proportional formula (same as calculerPaiements)
-  const totalJetonsFinalPNG = participants.reduce((s,p) => s + p.final, 0);
-  const totalCavesPNG = participants.reduce((s,p) => s + p.caves, 0);
-  const totalJetonsTheorique = totalCavesPNG * jetons;
-  const valeurJeton = valeur / jetons;
-  const totalMisePNG = totalCavesPNG * valeur;
+  // Same logic as calculerPaiements
+  const totalMisePNG = participants.reduce((s,p) => s + p.caves * valeur, 0);
+  const totalJetonsFinalWinnersPNG = participants.filter(p=>p.final>0).reduce((s,p) => s + p.final, 0);
 
   const resultsRaw = participants.map(p => {
-    const proportion = totalJetonsFinalPNG > 0 ? p.final / totalJetonsFinalPNG : 0;
-    const jetonsReviennent = proportion * totalJetonsTheorique;
-    const gain = Math.round((jetonsReviennent * valeurJeton - p.caves * valeur) * 100) / 100;
+    let gain;
+    if(p.final === 0) {
+      gain = -(p.caves * valeur);
+    } else {
+      const proportion = totalJetonsFinalWinnersPNG > 0 ? p.final / totalJetonsFinalWinnersPNG : 0;
+      gain = Math.round((proportion * totalMisePNG - p.caves * valeur) * 100) / 100;
+    }
     return { name: p.name, caves: p.caves, final: p.final, gain };
   });
 
   // Correction arrondi
-  const sumGains = resultsRaw.reduce((s,p) => s + p.gain, 0);
-  const err = Math.round(sumGains * 100) / 100;
-  if(Math.abs(err) >= 0.01) {
-    const idx = resultsRaw.reduce((best,p,i) => Math.abs(p.gain) > Math.abs(resultsRaw[best].gain) ? i : best, 0);
-    resultsRaw[idx].gain = Math.round((resultsRaw[idx].gain - err) * 100) / 100;
+  const sumGainsPNG = resultsRaw.reduce((s,p) => s + p.gain, 0);
+  const errPNG = Math.round(sumGainsPNG * 100) / 100;
+  if(Math.abs(errPNG) >= 0.01) {
+    const winnersP = resultsRaw.filter(p=>p.final>0);
+    if(winnersP.length) {
+      const best = winnersP.reduce((b,p) => Math.abs(p.gain) > Math.abs(b.gain) ? p : b);
+      best.gain = Math.round((best.gain - errPNG) * 100) / 100;
+    }
   }
   const results = resultsRaw.sort((a,b) => b.gain - a.gain);
 
