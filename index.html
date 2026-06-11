@@ -260,6 +260,7 @@
   .pay-player-card input:focus { border-color: var(--accent2); }
   .pay-check { position: absolute; top: 8px; right: 10px; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--border2); display: flex; align-items: center; justify-content: center; font-size: 10px; }
   .pay-player-card.selected .pay-check { background: var(--accent2); border-color: var(--accent2); color: #0d0d0f; }
+  .pay-player-card.pay-inactive { opacity: 0.4; }
   .pay-results { margin-top: 1.5rem; }
   .pay-results h3 { font-family: var(--display); font-size: 1.3rem; letter-spacing: 1px; margin-bottom: 1rem; color: var(--accent2); }
   .pay-summary { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
@@ -417,7 +418,10 @@
       </div>
     </div>
 
-    <div style="font-family:var(--display);font-size:1rem;letter-spacing:1px;margin-bottom:0.75rem;color:var(--muted)">JOUEURS PRÉSENTS</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:8px">
+      <span style="font-family:var(--display);font-size:1rem;letter-spacing:1px;color:var(--muted)">JOUEURS PRÉSENTS</span>
+      <button class="btn ghost sm" onclick="toggleInactivePay()" id="inactivePayBtn">+ Afficher inactifs</button>
+    </div>
     <div class="pay-players-grid" id="payPlayersGrid"></div>
 
     <!-- Mini form to add a new player inline -->
@@ -796,6 +800,7 @@ function renderTable() {
 
 // ── PAIEMENTS ─────────────────────────────────────────────────────────────────
 let paySelected=new Set();
+let showInactivePay = false;
 
 function updateCaveValue() {
   const j=parseFloat(document.getElementById('pc_jetons').value)||0;
@@ -805,8 +810,16 @@ function updateCaveValue() {
 
 function renderPayPlayers() {
   document.getElementById('payResults').style.display='none';
-  document.getElementById('payPlayersGrid').innerHTML=players.map((p,i)=>`
-    <div class="pay-player-card ${paySelected.has(p.name)?'selected':''}" id="ppc_${i}" onclick="togglePayPlayer('${p.name}',${i})">
+
+  // Sort: active players first, inactive last
+  const indexed = players.map((p,i) => ({p, i, active: isActivePlayer(p)}));
+  const sorted = [
+    ...indexed.filter(x => x.active),
+    ...indexed.filter(x => !x.active)
+  ];
+
+  document.getElementById('payPlayersGrid').innerHTML = sorted.map(({p, i, active}) => `
+    <div class="pay-player-card ${paySelected.has(p.name)?'selected':''} ${!active?'pay-inactive':''}" id="ppc_${i}" onclick="togglePayPlayer('${p.name}',${i})">
       <div class="pay-check">${paySelected.has(p.name)?'✓':''}</div>
       <div class="pname">${p.name}</div>
       <label>Caves</label>
@@ -814,6 +827,11 @@ function renderPayPlayers() {
       <label style="margin-top:6px">Jetons finaux</label>
       <input type="number" id="pc_final_${i}" value="0" min="0" onclick="event.stopPropagation()">
     </div>`).join('');
+
+  // Hide inactive players unless toggled
+  if(!showInactivePay) {
+    document.querySelectorAll('.pay-inactive').forEach(el => el.style.display = 'none');
+  }
 }
 
 function togglePayPlayer(name,idx) {
@@ -1333,6 +1351,16 @@ function togglePayment(sessionIdx, transferIdx, paid) {
 }
 
 
+
+// ── TOGGLE INACTIVE PAY ──────────────────────────────────────────────────────
+function toggleInactivePay() {
+  showInactivePay = !showInactivePay;
+  const btn = document.getElementById('inactivePayBtn');
+  if(btn) btn.textContent = showInactivePay ? '- Masquer inactifs' : '+ Afficher inactifs';
+  document.querySelectorAll('.pay-inactive').forEach(el => {
+    el.style.display = showInactivePay ? '' : 'none';
+  });
+}
 
 // ── ADD PLAYER FROM PAY ──────────────────────────────────────────────────────
 function toggleAddPlayerInline() {
